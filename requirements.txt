@@ -1,0 +1,8 @@
+discord
+python-dotenv
+openai
+tiktoken
+requests
+Pillow
+moviepy
+pytz
