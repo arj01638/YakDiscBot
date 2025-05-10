@@ -43,6 +43,8 @@ def load_cogs():
 async def on_ready():
     logger.info(f"Bot is ready. Logged in as {bot.user}")
 
+    bot.loop.create_task(background_task())
+
     # Load static configuration from personality module
     from personality import static_config
     logger.info("Static configuration loaded:")
@@ -245,7 +247,6 @@ async def background_task():
             last_reset = now
 
 def run_bot():
-    bot.loop.create_task(background_task())
     bot.run(DISCORD_TOKEN)
 
 if __name__ == "__main__":
