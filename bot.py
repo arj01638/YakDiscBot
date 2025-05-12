@@ -170,8 +170,7 @@ async def handle_prompt_chain(message):
                                        pres_penalty=0.0,
                                        top_p=0.9,
                                        stream=False)
-    reply_text = response.choices[0].message.content
-    await reply_split(message, reply_text)
+    await reply_split(message, response)
 
 
 @bot.event

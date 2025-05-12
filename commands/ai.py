@@ -16,7 +16,6 @@ class AIChat(commands.Cog):
         self.freq_penalty = 0.2
         self.pres_penalty = 0.0
         self.top_p = 0.9
-        self.streaming = False
 
     @commands.command(name="psychoanalyze", help="Perform psychoanalysis on a user's message history.")
     async def psychoanalyze(self, ctx, *, args=""):
@@ -39,54 +38,9 @@ class AIChat(commands.Cog):
         response = await get_chat_response(messages, self.default_model_engine,
                                              self.temperature - 0.5,
                                              self.freq_penalty, self.pres_penalty, self.top_p)
-        reply_text = response.choices[0].message.content
-        await reply_split(ctx.message, reply_text)
-        cost = 0.001  # placeholder cost calculation
+        await reply_split(ctx.message, response)
+        cost = 0.001  # TODO placeholder cost calculation
         await update_usage(author_id, cost, initial_balance=0)
-
-    @commands.command(name="qt", help="Get AI completion from a custom AI model.")
-    async def qt(self, ctx, *, arg):
-        author_id = ctx.author.id
-        prompt = arg if arg.endswith(':') else arg + "\n"
-        messages = [{"role": "user", "content": prompt}]
-        response = await get_chat_response(messages,
-                                             "ft:babbage-002:university-of-georgia::80Y3aADX",
-                                             0.6, self.freq_penalty, self.pres_penalty, 0.5,
-                                             stream=self.streaming)
-        if not self.streaming:
-            reply_text = response.choices[0].text
-            await reply_split(ctx.message, reply_text)
-        else:
-            # Implement streaming reply (omitted for brevity)
-            pass
-        cost = 0.001  # placeholder cost
-        await update_usage(author_id, cost, initial_balance=0)
-
-    @commands.command(name="qt1", help="Get the first line of an AI completion (stops at first newline).")
-    async def qt1(self, ctx, *, arg):
-        author_id = ctx.author.id
-        prompt = arg if arg.endswith(':') else arg + "\n"
-        messages = [{"role": "user", "content": prompt}]
-        # Use stop parameter to break at the first newline
-        response = await get_chat_response(messages,
-                                             "ft:babbage-002:university-of-georgia::80Y3aADX",
-                                             0.6, self.freq_penalty, self.pres_penalty, 0.5,
-                                             stream=self.streaming)
-        if not self.streaming:
-            # Assume the first line is everything up to the first newline
-            full_text = response.choices[0].text
-            reply_text = full_text.split('\n')[0]
-            await reply_split(ctx.message, reply_text)
-        else:
-            # Implement streaming for qt1 (omitted for brevity)
-            pass
-        cost = 0.001  # placeholder cost
-        await update_usage(author_id, cost, initial_balance=0)
-
-    @commands.command(name="togglestream", help="Toggle streaming mode for QT commands.")
-    async def togglestream(self, ctx):
-        self.streaming = not self.streaming
-        await ctx.send(f"Streaming mode is now set to {self.streaming}")
 
 def setup(bot):
     bot.add_cog(AIChat(bot))

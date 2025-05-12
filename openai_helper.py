@@ -1,15 +1,20 @@
 import openai
 import tiktoken
 import logging
+
+from openai import OpenAI
+
 from config import OPENAI_API_KEY
 
-openai.api_key = OPENAI_API_KEY
+client = OpenAI(
+    api_key=OPENAI_API_KEY
+)
 logger = logging.getLogger(__name__)
 
 async def get_chat_response(messages, model_engine, temperature, freq_penalty, pres_penalty, top_p, stream=False):
-    logger.info(f"Requesting response with model {model_engine}")
+    logger.info(f"Getting chat response with model {model_engine} \n messages: {messages} \n")
     try:
-        response = await openai.ChatCompletion.acreate(
+        response = client.chat.completions.create(
             model=model_engine,
             messages=messages,
             temperature=temperature,
@@ -18,10 +23,10 @@ async def get_chat_response(messages, model_engine, temperature, freq_penalty, p
             top_p=top_p,
             stream=stream
         )
-        return response
+        return response.choices[0].message.content
     except Exception as e:
         logger.error(f"Error getting chat response: {e}")
-        return {"choices": [{"message": {"content": f"Error: {str(e)}"}}]}
+        return f"Error: {str(e)}"
 
 async def get_tts(model, voice, text):
     try:
