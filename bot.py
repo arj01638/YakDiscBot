@@ -1,12 +1,14 @@
 import asyncio
 import datetime
+import re
 
 from discord.ext import commands
 import logging
 
 from discord_helper import reply_split
 from logging_setup import setup_logging
-from config import DISCORD_TOKEN, INITIAL_DABLOONS, DO_HANDLE_ALARMING_WORDS, UPVOTE_EMOJI, DOWNVOTE_EMOJI, DEFAULT_MODEL_ENGINE, DEFAULT_TEMPERATURE, DEFAULT_FREQ_PENALTY, DEFAULT_PRES_PENALTY, DEFAULT_TOP_P
+from config import DISCORD_TOKEN, INITIAL_DABLOONS, DO_HANDLE_ALARMING_WORDS, UPVOTE_EMOJI, DOWNVOTE_EMOJI, \
+    DEFAULT_MODEL_ENGINE, DEFAULT_TEMPERATURE, DEFAULT_FREQ_PENALTY, DEFAULT_PRES_PENALTY, DEFAULT_TOP_P
 import os
 from db import init_db, reset_usage, get_connection
 import discord
@@ -73,6 +75,7 @@ async def on_ready():
 
     logger.info("Data loaded successfully.")
 
+
 @bot.event
 async def on_message(message):
     if message.author.bot:
@@ -128,6 +131,7 @@ async def on_message(message):
     # Process commands normally.
     await bot.process_commands(message)
 
+
 async def handle_prompt_chain(message):
     """
     Collects the conversation from a reply chain, builds a prompt,
@@ -149,9 +153,48 @@ async def handle_prompt_chain(message):
     prompt_lines = []
     author_ids = []
 
+    params = {"model_engine": DEFAULT_MODEL_ENGINE,
+              "temperature": DEFAULT_TEMPERATURE,
+              "freq_penalty": DEFAULT_FREQ_PENALTY,
+              "pres_penalty": DEFAULT_PRES_PENALTY,
+              "top_p": DEFAULT_TOP_P}
+    param_pattern = re.compile(r"\b(usemodel|usetemp|usefreq|usepres|usetopp)\s+(\S+)", re.IGNORECASE)
+
     for msg in chain:
-        prompt_lines.append(f"{msg.author.id}: {message.content}")
+        # 1) extract params (later messages override earlier)
+        for match in param_pattern.finditer(msg.content):
+            key = match.group(1).lower()
+            val = match.group(2)
+            if key == "usemodel":
+                params["model_engine"] = val
+            elif key == "usetemp":
+                try:
+                    params["temperature"] = float(val)
+                except ValueError:
+                    pass
+            elif key == "usefreq":
+                try:
+                    params["freq_penalty"] = float(val)
+                except ValueError:
+                    pass
+            elif key == "usepres":
+                try:
+                    params["pres_penalty"] = float(val)
+                except ValueError:
+                    pass
+            elif key == "usetopp":
+                try:
+                    params["top_p"] = float(val)
+                except ValueError:
+                    pass
+
+        # 2) strip all param tokens from the message content
+        clean_content = param_pattern.sub("", msg.content).strip()
+
+        # 3) build your prompt lines and author list
+        prompt_lines.append(f"{msg.author.id}: {clean_content}")
         author_ids.append(msg.author.id)
+
 
     # authors_information = {author_id: (name, description), ...}
     authors_information = get_author_information(author_ids, message.guild)
@@ -174,15 +217,20 @@ async def handle_prompt_chain(message):
         {"role": "system",
          "content": system_msg}
     ]
+    bot_id = bot.user.id
     for i, line in enumerate(prompt_lines):
-        pass # todo
+        if line.startswith(f"{bot_id}:"):
+            messages_prompt.append({"role": "assistant", "content": line.replace(f"{bot_id}:", "")})
+        else:
+            messages_prompt.append({"role": "user", "content": line})
+
     response = await get_chat_response(messages_prompt,
-                                       model_engine="gpt-4o-mini",
-                                       temperature=1.7,
-                                       freq_penalty=0.2,
-                                       pres_penalty=0.0,
-                                       top_p=0.9,
-                                       stream=False)
+                                       model_engine=params["model_engine"],
+                                       temperature=params["temperature"],
+                                       freq_penalty=params["freq_penalty"],
+                                       pres_penalty=params["pres_penalty"],
+                                       top_p=params["top_p"])
+
     await reply_split(message, response)
 
 
@@ -227,6 +275,7 @@ async def on_raw_reaction_remove(payload):
         update_karma(guild.id, message.author.id, 1)
         remove_reaction(message.id, member.id, payload.emoji)
 
+
 async def background_task():
     await bot.wait_until_ready()
     import pytz
@@ -240,8 +289,10 @@ async def background_task():
             logger.info("Usage data reset for the new day.")
             last_reset = now
 
+
 def run_bot():
     bot.run(DISCORD_TOKEN)
+
 
 if __name__ == "__main__":
     run_bot()
