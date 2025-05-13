@@ -1,16 +1,22 @@
 import asyncio
 import datetime
+
 from discord.ext import commands
 import logging
 
 from discord_helper import reply_split
 from logging_setup import setup_logging
-from config import DISCORD_TOKEN, INITIAL_DABLOONS
+from config import DISCORD_TOKEN, INITIAL_DABLOONS, DO_HANDLE_ALARMING_WORDS, UPVOTE_EMOJI, DOWNVOTE_EMOJI, DEFAULT_MODEL_ENGINE, DEFAULT_TEMPERATURE, DEFAULT_FREQ_PENALTY, DEFAULT_PRES_PENALTY, DEFAULT_TOP_P
 import os
 from db import init_db, reset_usage, get_connection
 import discord
 
 from personality import get_personality
+
+from db import update_karma
+from openai_helper import get_chat_response
+from personalization import get_author_information
+from safety import ALARMING_WORDS, handle_alarming_words
 
 # Set up logging
 setup_logging()
@@ -45,60 +51,48 @@ async def on_ready():
 
     bot.loop.create_task(background_task())
 
-    # Load static configuration from personality module
     from personality import static_config
-    logger.info("Static configuration loaded:")
-    # Log a snippet of the user dictionary and insults list
-    user_dict_snippet = dict(list(static_config.get("user_dict", {}).items())[:3])
-    insults_count = len(static_config.get("insults", []))
-    logger.info(f"User dict snippet: {user_dict_snippet}")
-    logger.info(f"Total insults loaded: {insults_count}")
+    from db import get_karma_snippet, get_usage_snippet, get_identities_snippet
 
-    # For each guild, query the top few karma entries and log them
+    logger.info("Static configuration loaded:")
+    if DO_HANDLE_ALARMING_WORDS:
+        user_dict_snippet = dict(list(static_config.get("user_dict", {}).items())[:3])
+        insults_count = len(static_config.get("insults", []))
+        logger.info(f"User dict snippet: {user_dict_snippet}")
+        logger.info(f"Total insults loaded: {insults_count}")
+
     for guild in bot.guilds:
-        conn = get_connection()
-        c = conn.cursor()
-        c.execute("SELECT user_id, karma FROM karma WHERE guild_id = ? LIMIT 3", (guild.id,))
-        rows = c.fetchall()
-        conn.close()
-        snippet = [{"user_id": row["user_id"], "karma": row["karma"]} for row in rows]
+        snippet = get_karma_snippet(guild.id)
         logger.info(f"Guild '{guild.name}' ({guild.id}) karma snippet: {snippet}")
 
-    # Optionally, check a snippet of usage data from the DB
-    conn = get_connection()
-    c = conn.cursor()
-    c.execute("SELECT user_id, usage_balance, bank_balance FROM usage LIMIT 3")
-    usage_rows = c.fetchall()
-    conn.close()
-    usage_snippet = [{"user_id": row["user_id"], "usage": row["usage_balance"], "bank": row["bank_balance"]} for row in
-                     usage_rows]
+    usage_snippet = get_usage_snippet()
     logger.info(f"Usage data snippet: {usage_snippet}")
+
+    identities_snippet = get_identities_snippet()
+    logger.info(f"Identities data snippet: {identities_snippet}")
 
     logger.info("Data loaded successfully.")
 
 @bot.event
 async def on_message(message):
-    # Ignore messages from bots.
     if message.author.bot:
         return
 
-    # Check for alarming words in guild messages.
-    if message.guild:
-        from safety import ALARMING_WORDS, handle_alarming_words
-        content_lower = message.content.lower()
-        if any(word in content_lower for word in ALARMING_WORDS):
-            conn = get_connection()
-            c = conn.cursor()
-            c.execute("SELECT karma FROM karma WHERE guild_id = ? AND user_id = ?",
-                      (message.guild.id, message.author.id))
-            row = c.fetchone()
-            conn.close()
-            current_karma = row["karma"] if row else 0
-            await handle_alarming_words(message, current_karma)
-            # Continue processing commands even if alarming words are present.
+    if DO_HANDLE_ALARMING_WORDS:
+        if message.guild:
+            content_lower = message.content.lower()
+            if any(word in content_lower for word in ALARMING_WORDS):
+                conn = get_connection()
+                c = conn.cursor()
+                c.execute("SELECT karma FROM karma WHERE guild_id = ? AND user_id = ?",
+                          (message.guild.id, message.author.id))
+                row = c.fetchone()
+                conn.close()
+                current_karma = row["karma"] if row else 0
+                await handle_alarming_words(message, current_karma)
 
     # If message starts with a bot mention, check if it's a valid command;
-    # if not, handle it as a prompt chain.
+    # if not, handle it as an LLM prompt.
     if message.content.startswith(f"<@{bot.user.id}>"):
         ctx = await bot.get_context(message)
         if ctx.valid:
@@ -117,7 +111,7 @@ async def on_message(message):
             if message.content.startswith("!tts"):
                 await bot.process_commands(message)
                 return
-            elif message.content.startswith("!rw "):
+            elif message.content.startswith("!rw"):
                 content = message.content[4:].strip()
                 await replied_message.reply(content)
                 return
@@ -151,18 +145,37 @@ async def handle_prompt_chain(message):
         else:
             break
     chain.reverse()  # earliest first
+
     prompt_lines = []
+    author_ids = []
+
     for msg in chain:
-        # Remove bot mentions
-        content = msg.content.replace(f"<@{bot.user.id}>", "").strip()
-        prompt_lines.append(f"{msg.author.display_name}: {content}")
-    prompt_text = "\n".join(prompt_lines)
-    system_msg = get_personality(message.guild.name, prompt_lines)
+        prompt_lines.append(f"{msg.author.id}: {message.content}")
+        author_ids.append(msg.author.id)
+
+    # authors_information = {author_id: (name, description), ...}
+    authors_information = get_author_information(author_ids, message.guild)
+
+    for i, line in enumerate(prompt_lines):
+        # this would seem inefficient but this is done to handle pings within messages
+        for user_id in author_ids:
+            if str(user_id) in line:
+                name, _ = authors_information[user_id]
+                prompt_lines[i] = line.replace(str(user_id), name)
+
+    personality = get_personality(message.guild.name, prompt_lines)
+    system_msg = personality
+    for author_id in authors_information:
+        name, description = authors_information[author_id]
+        if description:
+            system_msg += f"\n{name}: {description}"
+
     messages_prompt = [
-        {"role": "system", "content": system_msg},
-        {"role": "user", "content": prompt_text}
+        {"role": "system",
+         "content": system_msg}
     ]
-    from openai_helper import get_chat_response
+    for i, line in enumerate(prompt_lines):
+        pass # todo
     response = await get_chat_response(messages_prompt,
                                        model_engine="gpt-4o-mini",
                                        temperature=1.7,
@@ -183,25 +196,15 @@ async def on_raw_reaction_add(payload):
     except Exception as e:
         logger.error(f"Error in on_raw_reaction_add: {e}")
         return
-    from config import UPVOTE_EMOJI, DOWNVOTE_EMOJI
+
+    from db import add_reaction
+
     if str(payload.emoji) == UPVOTE_EMOJI:
-        from db import update_karma
         update_karma(guild.id, message.author.id, 1)
-        conn = get_connection()
-        c = conn.cursor()
-        c.execute("INSERT OR IGNORE INTO reactions (message_id, reactor_id, recipient_id, value) VALUES (?, ?, ?, ?)",
-                  (str(message.id), member.id, message.author.id, 1))
-        conn.commit()
-        conn.close()
+        add_reaction(message.id, member.id, message.author.id, payload.emoji)
     elif str(payload.emoji) == DOWNVOTE_EMOJI:
-        from db import update_karma
         update_karma(guild.id, message.author.id, -1)
-        conn = get_connection()
-        c = conn.cursor()
-        c.execute("INSERT OR IGNORE INTO reactions (message_id, reactor_id, recipient_id, value) VALUES (?, ?, ?, ?)",
-                  (str(message.id), member.id, message.author.id, -1))
-        conn.commit()
-        conn.close()
+        add_reaction(message.id, member.id, message.author.id, payload.emoji)
 
 
 @bot.event
@@ -214,23 +217,15 @@ async def on_raw_reaction_remove(payload):
     except Exception as e:
         logger.error(f"Error in on_raw_reaction_remove: {e}")
         return
-    from config import UPVOTE_EMOJI, DOWNVOTE_EMOJI
+
+    from db import remove_reaction
+
     if str(payload.emoji) == UPVOTE_EMOJI:
-        from db import update_karma
         update_karma(guild.id, message.author.id, -1)
-        conn = get_connection()
-        c = conn.cursor()
-        c.execute("DELETE FROM reactions WHERE message_id = ? AND reactor_id = ?", (str(message.id), member.id))
-        conn.commit()
-        conn.close()
+        remove_reaction(message.id, member.id, payload.emoji)
     elif str(payload.emoji) == DOWNVOTE_EMOJI:
-        from db import update_karma
         update_karma(guild.id, message.author.id, 1)
-        conn = get_connection()
-        c = conn.cursor()
-        c.execute("DELETE FROM reactions WHERE message_id = ? AND reactor_id = ?", (str(message.id), member.id))
-        conn.commit()
-        conn.close()
+        remove_reaction(message.id, member.id, payload.emoji)
 
 async def background_task():
     await bot.wait_until_ready()
@@ -238,7 +233,7 @@ async def background_task():
     last_reset = datetime.datetime.now(pytz.timezone('US/Eastern')).date()
     while not bot.is_closed():
         await asyncio.sleep(3600)  # Every hour
-        # (SQLite commits on each update so explicit "saving" isn't needed, but you can run maintenance here.)
+        # todo, scrape during off hours
         now = datetime.datetime.now(pytz.timezone('US/Eastern')).date()
         if now != last_reset:
             reset_usage(INITIAL_DABLOONS)

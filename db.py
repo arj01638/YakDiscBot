@@ -29,15 +29,55 @@ def init_db():
         PRIMARY KEY (guild_id, user_id)
     )
     """)
-    # Reaction table (optional if you need granular reaction logging)
+    # Reaction table: message_id, reactor_id, reactee_id, value
     c.execute("""
     CREATE TABLE IF NOT EXISTS reactions (
         message_id TEXT,
-        user_id INTEGER,
-        value INTEGER,
-        PRIMARY KEY (message_id, user_id)
+        reactor_id INTEGER,
+        reactee_id INTEGER,
+        value TEXT,
+        PRIMARY KEY (message_id, reactor_id, value)
     )
     """)
+    # Identities table: user_id, name, description
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS identities (
+        user_id INTEGER PRIMARY KEY,
+        name TEXT,
+        description TEXT,
+        PRIMARY KEY (user_id)
+    )
+    """)
+    conn.commit()
+    conn.close()
+
+def get_name(user_id):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT name FROM identities WHERE user_id = ?", (user_id,))
+    row = c.fetchone()
+    conn.close()
+    return row["name"] if row else None
+
+def set_name(user_id, name):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("INSERT OR REPLACE INTO identities (user_id, name) VALUES (?, ?)", (user_id, name))
+    conn.commit()
+    conn.close()
+
+def get_description(user_id):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT description FROM identities WHERE user_id = ?", (user_id,))
+    row = c.fetchone()
+    conn.close()
+    return row["description"] if row else None
+
+def set_description(user_id, description):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("INSERT OR REPLACE INTO identities (user_id, description) VALUES (?, ?)", (user_id, description))
     conn.commit()
     conn.close()
 
@@ -96,3 +136,75 @@ def update_karma(guild_id, user_id, delta):
         c.execute("UPDATE karma SET karma = karma + ? WHERE guild_id = ? AND user_id = ?", (delta, guild_id, user_id))
     conn.commit()
     conn.close()
+
+
+def add_reaction(message_id, user_id, author_id, value):
+    conn = get_connection()
+    c = conn.cursor()
+    # Check if the reaction already exists
+    c.execute("SELECT * FROM reactions WHERE message_id = ? AND reactor_id = ? AND value = ?",
+              (message_id, user_id, value))
+    row = c.fetchone()
+    if row:
+        # Update the existing reaction
+        c.execute("UPDATE reactions SET reactee_id = ? WHERE message_id = ? AND reactor_id = ? AND value = ?",
+                  (author_id, message_id, user_id, value))
+    else:
+        # Insert a new reaction
+        c.execute("INSERT INTO reactions (message_id, reactor_id, reactee_id, value) VALUES (?, ?, ?, ?)",
+                  (message_id, user_id, author_id, value))
+    conn.commit()
+    conn.close()
+
+
+def remove_reaction(message_id, user_id, value):
+    conn = get_connection()
+    c = conn.cursor()
+    # Delete the reaction
+    c.execute("DELETE FROM reactions WHERE message_id = ? AND reactor_id = ? AND value = ?",
+              (message_id, user_id, value))
+    conn.commit()
+    conn.close()
+
+
+
+def get_karma_snippet(guild_id, limit=5):
+    """
+    Return a snippet (top users by karma) for a guild as a dict {user_id: karma}.
+    """
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("""
+        SELECT user_id, karma FROM karma WHERE guild_id = ? ORDER BY karma DESC LIMIT ?
+    """, (guild_id, limit))
+    rows = c.fetchall()
+    conn.close()
+    return {row["user_id"]: row["karma"] for row in rows}
+
+
+def get_usage_snippet(limit=5):
+    """
+    Return a snippet of usage data as a dict {user_id: (usage_balance, bank_balance)}.
+    """
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("""
+        SELECT user_id, usage_balance, bank_balance FROM usage ORDER BY usage_balance DESC LIMIT ?
+    """, (limit,))
+    rows = c.fetchall()
+    conn.close()
+    return {row["user_id"]: (row["usage_balance"], row["bank_balance"]) for row in rows}
+
+
+def get_identities_snippet(limit=5):
+    """
+    Return a snippet of identities as a dict {user_id: (name, description)}.
+    """
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("""
+        SELECT user_id, name, description FROM identities LIMIT ?
+    """, (limit,))
+    rows = c.fetchall()
+    conn.close()
+    return {row["user_id"]: (row["name"], row["description"]) for row in rows}
