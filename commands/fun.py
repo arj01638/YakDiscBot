@@ -140,5 +140,5 @@ class FunCommands(commands.Cog):
         await coins.delete()
         await anim_msg.delete()
 
-def setup(bot):
-    bot.add_cog(FunCommands(bot))
+async def setup(bot):
+    await bot.add_cog(FunCommands(bot))

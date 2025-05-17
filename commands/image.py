@@ -1,3 +1,5 @@
+import base64
+
 from discord.ext import commands
 import logging
 import requests
@@ -15,8 +17,8 @@ class ImageCommands(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command(name="genimage", help="Generate an image using DALL-E 3.")
-    async def genimage(self, ctx, *, arg):
+    @commands.command(name="dalle3", help="Generate an image using DALL-E 3.")
+    async def dalle3(self, ctx, *, arg):
         author_id = ctx.author.id
         size = "1024x1024"
         if arg.startswith("hoz"):
@@ -25,19 +27,49 @@ class ImageCommands(commands.Cog):
         elif arg.startswith("vert"):
             size = "1024x1792"
             arg = arg[4:]
+        quality = "standard"
         try:
-            response = await get_image("dall-e-3", arg, 1, size)
+            logging.info(f"Getting image with parameters: {arg}, {size}, {quality}")
+            response = await get_image(model="dall-e-3", prompt=arg,user_id=author_id, n=1, size=size, quality=quality)
         except Exception as e:
             await reply_split(ctx.message, str(e))
             return
         image_url = response.data[0].url
         img_bytes = requests.get(image_url).content
+        logging.info(f"Revised Prompt: {response.data[0].revised_prompt}")
         await ctx.reply(file=discord.File(io.BytesIO(img_bytes), filename="image.png"))
-        cost = 0.02 * 2
-        await update_usage(author_id, cost, initial_balance=0)
+
+    @commands.command(name="genimage", help="Generate a medium-quality image using GPT-IMAGE-1.")
+    async def genimage(self, ctx, *, arg):
+        author_id = ctx.author.id
+        size = "1024x1024"
+        quality = "medium"
+        try:
+            response = await get_image(model="gpt-image-1", prompt=arg, user_id=author_id, n=1, size=size, quality=quality)
+        except Exception as e:
+            await reply_split(ctx.message, str(e))
+            return
+        image_b64 = response.data[0].b64_json
+        img_bytes = base64.b64decode(image_b64)
+        await ctx.reply(file=discord.File(io.BytesIO(img_bytes), filename="image.png"))
+
+    @commands.command(name="genimagehd", help="Generate a high-quality image using GPT-IMAGE-1.")
+    async def genimagehd(self, ctx, *, arg):
+        author_id = ctx.author.id
+        size = "1024x1024"
+        quality = "high"
+        try:
+            response = await get_image(model="gpt-image-1", prompt=arg, user_id=author_id, n=1, size=size,
+                                       quality=quality)
+        except Exception as e:
+            await reply_split(ctx.message, str(e))
+            return
+        image_b64 = response.data[0].b64_json
+        img_bytes = base64.b64decode(image_b64)
+        await ctx.reply(file=discord.File(io.BytesIO(img_bytes), filename="image.png"))
 
     @commands.command(name="sdultra", help="Generate an image using Stability SD Ultra.")
-    async def sdultra(self, ctx, *, arg):
+    async def sdultra(self, ctx, *, arg): # todo, move a lot of this function to stability_helper.py
         author_id = ctx.author.id
         if STABILITY_API_KEY is None:
             logger.warning("Stability API key not set up!")
@@ -56,8 +88,8 @@ class ImageCommands(commands.Cog):
             if response.status_code == 200:
                 img_bytes = response.content
                 await ctx.reply(file=discord.File(io.BytesIO(img_bytes), "image.png"))
-                cost = 0.08
-                await update_usage(author_id, cost, initial_balance=0)
+                cost = 0.08 # todo, double check this
+                await update_usage(author_id, cost)
             else:
                 await reply_split(ctx.message, str(response.json()))
         except Exception as e:
@@ -84,7 +116,7 @@ class ImageCommands(commands.Cog):
                 img_bytes = response.content
                 await ctx.reply(file=discord.File(io.BytesIO(img_bytes), "image.png"))
                 cost = 0.03
-                await update_usage(author_id, cost, initial_balance=0)
+                await update_usage(author_id, cost)
             else:
                 await reply_split(ctx.message, str(response.json()))
         except Exception as e:
@@ -124,7 +156,7 @@ class ImageCommands(commands.Cog):
                 img_bytes = response.content
                 await ctx.reply(file=discord.File(io.BytesIO(img_bytes), "image.png"))
                 cost = 0.04
-                await update_usage(author_id, cost, initial_balance=0)
+                await update_usage(author_id, cost)
             else:
                 await reply_split(ctx.message, str(response.json()))
         except Exception as e:
@@ -183,29 +215,9 @@ class ImageCommands(commands.Cog):
             img_bytes = requests.get(image_url).content
             await ctx.reply(file=discord.File(io.BytesIO(img_bytes), "image.png"))
             cost = 0.02
-            await update_usage(author_id, cost, initial_balance=0)
+            await update_usage(author_id, cost)
         except Exception as e:
             await reply_split(ctx.message, str(e))
 
-    @commands.command(name="dalle3hd", help="Generate an HD image using DALL-E 3.")
-    async def dalle3hd(self, ctx, *, arg):
-        author_id = ctx.author.id
-        size = "1024x1024"
-        if arg.startswith("hoz"):
-            size = "1792x1024"
-            arg = arg[3:]
-        elif arg.startswith("vert"):
-            size = "1024x1792"
-            arg = arg[4:]
-        try:
-            response = await get_image("dall-e-3", arg, 1, size, quality="hd")
-            image_url = response.data[0].url
-            img_bytes = requests.get(image_url).content
-            await ctx.reply(file=discord.File(io.BytesIO(img_bytes), "image.png"))
-            cost = 0.02 * 2 * 2  # doubled for DALL-E 3 and HD quality
-            await update_usage(author_id, cost, initial_balance=0)
-        except Exception as e:
-            await reply_split(ctx.message, str(e))
-
-def setup(bot):
-    bot.add_cog(ImageCommands(bot))
+async def setup(bot):
+    await bot.add_cog(ImageCommands(bot))

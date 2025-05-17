@@ -8,6 +8,7 @@ from discord_helper import reply_split
 
 logger = logging.getLogger(__name__)
 
+
 class AIChat(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -36,11 +37,11 @@ class AIChat(commands.Cog):
             {"role": "user", "content": prompt_text}
         ]
         response = await get_chat_response(messages, self.default_model_engine,
-                                             self.temperature - 0.5,
-                                             self.freq_penalty, self.pres_penalty, self.top_p)
+                                           1, 0, 0, 1, ctx.author.id)
         await reply_split(ctx.message, response)
         cost = 0.001  # TODO placeholder cost calculation
-        await update_usage(author_id, cost, initial_balance=0)
+        await update_usage(author_id, cost)
 
-def setup(bot):
-    bot.add_cog(AIChat(bot))
+
+async def setup(bot):
+    await bot.add_cog(AIChat(bot))

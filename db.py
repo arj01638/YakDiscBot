@@ -1,14 +1,18 @@
 import sqlite3
 import os
 
+from config import INITIAL_DABLOONS
+
 DB_PATH = os.path.join("data", "bot.db")
+
 
 def get_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
 
-def init_db():
+
+def init_db(bot_id):
     conn = get_connection()
     c = conn.cursor()
     # Usage table: user_id, usage_balance, bank_balance, total_usage
@@ -44,12 +48,18 @@ def init_db():
     CREATE TABLE IF NOT EXISTS identities (
         user_id INTEGER PRIMARY KEY,
         name TEXT,
-        description TEXT,
-        PRIMARY KEY (user_id)
+        description TEXT
     )
     """)
+
+    # add to identities table bot_id as Gluemo
+    c.execute("""
+    INSERT OR IGNORE INTO identities (user_id, name, description) VALUES (?, ?, ?)
+    """, (bot_id, "Gluemo", ""))
+
     conn.commit()
     conn.close()
+
 
 def get_name(user_id):
     conn = get_connection()
@@ -59,12 +69,14 @@ def get_name(user_id):
     conn.close()
     return row["name"] if row else None
 
+
 def set_name(user_id, name):
     conn = get_connection()
     c = conn.cursor()
     c.execute("INSERT OR REPLACE INTO identities (user_id, name) VALUES (?, ?)", (user_id, name))
     conn.commit()
     conn.close()
+
 
 def get_description(user_id):
     conn = get_connection()
@@ -74,12 +86,14 @@ def get_description(user_id):
     conn.close()
     return row["description"] if row else None
 
+
 def set_description(user_id, description):
     conn = get_connection()
     c = conn.cursor()
     c.execute("INSERT OR REPLACE INTO identities (user_id, description) VALUES (?, ?)", (user_id, description))
     conn.commit()
     conn.close()
+
 
 def get_usage(user_id):
     conn = get_connection()
@@ -89,7 +103,16 @@ def get_usage(user_id):
     conn.close()
     return row if row else None
 
-def update_usage(user_id, delta, initial_balance):
+def positive_balance(user_id):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT usage_balance FROM usage WHERE user_id = ?", (user_id,))
+    row = c.fetchone()
+    conn.close()
+    return row["usage_balance"] > 0 if row else False
+
+
+def update_usage(user_id, delta, initial_balance=INITIAL_DABLOONS):
     conn = get_connection()
     c = conn.cursor()
     usage = get_usage(user_id)
@@ -103,13 +126,16 @@ def update_usage(user_id, delta, initial_balance):
             remainder = -new_balance
             new_bank = max(usage["bank_balance"] - remainder, 0)
             new_balance = 0
-            c.execute("UPDATE usage SET usage_balance = ?, bank_balance = ?, total_usage = total_usage + ? WHERE user_id = ?",
-                      (new_balance, new_bank, delta, user_id))
+            c.execute(
+                "UPDATE usage SET usage_balance = ?, bank_balance = ?, total_usage = total_usage + ? WHERE user_id = ?",
+                (new_balance, new_bank, delta, user_id))
         else:
-            c.execute("UPDATE usage SET usage_balance = usage_balance - ?, total_usage = total_usage + ? WHERE user_id = ?",
-                      (delta, delta, user_id))
+            c.execute(
+                "UPDATE usage SET usage_balance = usage_balance - ?, total_usage = total_usage + ? WHERE user_id = ?",
+                (delta, delta, user_id))
     conn.commit()
     conn.close()
+
 
 def reset_usage(initial_balance):
     conn = get_connection()
@@ -118,6 +144,7 @@ def reset_usage(initial_balance):
     conn.commit()
     conn.close()
 
+
 def get_karma(guild_id, user_id):
     conn = get_connection()
     c = conn.cursor()
@@ -125,6 +152,7 @@ def get_karma(guild_id, user_id):
     row = c.fetchone()
     conn.close()
     return row["karma"] if row else 0
+
 
 def update_karma(guild_id, user_id, delta):
     conn = get_connection()
@@ -165,7 +193,6 @@ def remove_reaction(message_id, user_id, value):
               (message_id, user_id, value))
     conn.commit()
     conn.close()
-
 
 
 def get_karma_snippet(guild_id, limit=5):

@@ -24,24 +24,21 @@ from safety import ALARMING_WORDS, handle_alarming_words
 setup_logging()
 logger = logging.getLogger(__name__)
 
-# Initialize the SQLite database
-init_db()
-
 intents = discord.Intents.default()
 intents.messages = True
 intents.message_content = True
 intents.members = True
 
-bot = commands.Bot(command_prefix=commands.when_mentioned, intents=intents)
+bot = commands.Bot(command_prefix=commands.when_mentioned_or("!"), intents=intents)
 
 
 # Load all command cogs from the commands folder
-def load_cogs():
+async def load_cogs():
     for filename in os.listdir("./commands"):
         if filename.endswith(".py") and filename != "__init__.py":
             cog_name = filename[:-3]
             try:
-                bot.load_extension(f"commands.{cog_name}")
+                await bot.load_extension(f"commands.{cog_name}")
                 logger.info(f"Loaded cog: {cog_name}")
             except Exception as e:
                 logger.error(f"Failed to load cog {cog_name}: {e}")
@@ -50,6 +47,10 @@ def load_cogs():
 @bot.event
 async def on_ready():
     logger.info(f"Bot is ready. Logged in as {bot.user}")
+
+    await load_cogs()
+
+    init_db(bot.user.id)
 
     bot.loop.create_task(background_task())
 
@@ -94,15 +95,15 @@ async def on_message(message):
                 current_karma = row["karma"] if row else 0
                 await handle_alarming_words(message, current_karma)
 
-    # If message starts with a bot mention, check if it's a valid command;
-    # if not, handle it as an LLM prompt.
-    if message.content.startswith(f"<@{bot.user.id}>"):
-        ctx = await bot.get_context(message)
-        if ctx.valid:
-            await bot.process_commands(message)
-        else:
-            await handle_prompt_chain(message)
-        return
+    ctx = await bot.get_context(message)
+    if ctx.valid:
+        return await bot.process_commands(message)
+
+    prefixes = await bot.get_prefix(message)
+    if isinstance(prefixes,str):
+        prefixes = [prefixes]
+    if any(message.content.startswith(prefix) for prefix in prefixes):
+        return await handle_prompt_chain(message)
 
     # Special handling for messages that are replies to bot messages.
     if message.reference is not None:
@@ -151,7 +152,7 @@ async def handle_prompt_chain(message):
     chain.reverse()  # earliest first
 
     prompt_lines = []
-    author_ids = []
+    author_ids = [bot.user.id]
 
     params = {"model_engine": DEFAULT_MODEL_ENGINE,
               "temperature": DEFAULT_TEMPERATURE,
@@ -161,40 +162,28 @@ async def handle_prompt_chain(message):
     param_pattern = re.compile(r"\b(usemodel|usetemp|usefreq|usepres|usetopp)\s+(\S+)", re.IGNORECASE)
 
     for msg in chain:
-        # 1) extract params (later messages override earlier)
+        # Extract parameters from message (later messages override earlier ones)
         for match in param_pattern.finditer(msg.content):
-            key = match.group(1).lower()
-            val = match.group(2)
-            if key == "usemodel":
-                params["model_engine"] = val
-            elif key == "usetemp":
+            key, val = match.group(1).lower(), match.group(2)
+            param_mapping = {
+                "usemodel": ("model_engine", str),
+                "usetemp": ("temperature", float),
+                "usefreq": ("freq_penalty", float),
+                "usepres": ("pres_penalty", float),
+                "usetopp": ("top_p", float)
+            }
+
+            if key in param_mapping:
+                param_name, convert_func = param_mapping[key]
                 try:
-                    params["temperature"] = float(val)
-                except ValueError:
-                    pass
-            elif key == "usefreq":
-                try:
-                    params["freq_penalty"] = float(val)
-                except ValueError:
-                    pass
-            elif key == "usepres":
-                try:
-                    params["pres_penalty"] = float(val)
-                except ValueError:
-                    pass
-            elif key == "usetopp":
-                try:
-                    params["top_p"] = float(val)
+                    params[param_name] = convert_func(val)
                 except ValueError:
                     pass
 
-        # 2) strip all param tokens from the message content
         clean_content = param_pattern.sub("", msg.content).strip()
 
-        # 3) build your prompt lines and author list
         prompt_lines.append(f"{msg.author.id}: {clean_content}")
         author_ids.append(msg.author.id)
-
 
     # authors_information = {author_id: (name, description), ...}
     authors_information = get_author_information(author_ids, message.guild)
@@ -204,7 +193,7 @@ async def handle_prompt_chain(message):
         for user_id in author_ids:
             if str(user_id) in line:
                 name, _ = authors_information[user_id]
-                prompt_lines[i] = line.replace(str(user_id), name)
+                prompt_lines[i] = prompt_lines[i].replace(str(user_id), name)
 
     personality = get_personality(message.guild.name, prompt_lines)
     system_msg = personality
@@ -229,7 +218,8 @@ async def handle_prompt_chain(message):
                                        temperature=params["temperature"],
                                        freq_penalty=params["freq_penalty"],
                                        pres_penalty=params["pres_penalty"],
-                                       top_p=params["top_p"])
+                                       top_p=params["top_p"],
+                                       user_id=message.author.id)
 
     await reply_split(message, response)
 
@@ -281,13 +271,13 @@ async def background_task():
     import pytz
     last_reset = datetime.datetime.now(pytz.timezone('US/Eastern')).date()
     while not bot.is_closed():
-        await asyncio.sleep(3600)  # Every hour
         # todo, scrape during off hours
         now = datetime.datetime.now(pytz.timezone('US/Eastern')).date()
         if now != last_reset:
             reset_usage(INITIAL_DABLOONS)
             logger.info("Usage data reset for the new day.")
             last_reset = now
+        await asyncio.sleep(3600)  # Every hour
 
 
 def run_bot():

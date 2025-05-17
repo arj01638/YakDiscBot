@@ -230,5 +230,5 @@ class ReactionCommands(commands.Cog):
             rank += 1
         await ctx.send(embed=embed)
 
-def setup(bot):
-    bot.add_cog(ReactionCommands(bot))
+async def setup(bot):
+    await bot.add_cog(ReactionCommands(bot))

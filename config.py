@@ -9,7 +9,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 STABILITY_API_KEY = os.getenv("STABILITY_API_KEY")  # Optional; may be None
 
 # Bot settings
-DEFAULT_MODEL_ENGINE = "gpt-4o-mini"
+DEFAULT_MODEL_ENGINE = "gpt-4.1-mini"
 DEFAULT_TEMPERATURE = 1.7
 DEFAULT_FREQ_PENALTY = 0.2
 DEFAULT_PRES_PENALTY = 0.0
@@ -26,7 +26,7 @@ UPVOTE_EMOJI = os.getenv("UPVOTE_EMOJI", "⬆️")
 DOWNVOTE_EMOJI = os.getenv("DOWNVOTE_EMOJI", "⬇️")
 
 # Other settings
-INITIAL_DABLOONS = 0.14 * 5  # starting token balance
+INITIAL_DABLOONS = 0.5  # starting dollar balance
 
 ADMIN_USER_ID = int(os.getenv("ADMIN_USER_ID", "0"))
 

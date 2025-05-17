@@ -51,8 +51,8 @@ class TTS(commands.Cog):
             await reply_split(ctx.message, str(e))
             return
         cost = (len(text) / 1000) * (0.015 if model == TTS_MODEL else 0.03)
-        await update_usage(author_id, cost, initial_balance=0)
+        await update_usage(author_id, cost)
         await self.reply_with_movie(ctx, response)
 
-def setup(bot):
-    bot.add_cog(TTS(bot))
+async def setup(bot):
+    await bot.add_cog(TTS(bot))

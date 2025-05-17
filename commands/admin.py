@@ -160,5 +160,5 @@ class AdminCommands(commands.Cog):
         new_karma = get_karma(guild_id, user_id)
         await ctx.send(f"Updated karma for user {user_id} in guild {guild_id} by {amount}. New karma: {new_karma}")
 
-def setup(bot):
-    bot.add_cog(AdminCommands(bot))
+async def setup(bot):
+    await bot.add_cog(AdminCommands(bot))

@@ -34,5 +34,5 @@ class TokenCommands(commands.Cog):
     async def dabloons(self, ctx, user_id: int = None):
         await self.tokens(ctx, user_id)
 
-def setup(bot):
-    bot.add_cog(TokenCommands(bot))
+async def setup(bot):
+    await bot.add_cog(TokenCommands(bot))
