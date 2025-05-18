@@ -103,6 +103,14 @@ def get_usage(user_id):
     conn.close()
     return row if row else None
 
+def get_balance(user_id):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT usage_balance, bank_balance FROM usage WHERE user_id = ?", (user_id,))
+    row = c.fetchone()
+    conn.close()
+    return row["usage_balance"] if row else None
+
 def positive_balance(user_id):
     conn = get_connection()
     c = conn.cursor()

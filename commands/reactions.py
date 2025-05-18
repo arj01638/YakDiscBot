@@ -1,39 +1,37 @@
 import discord
 from discord.ext import commands
 import logging
-import sqlite3
 from db import get_connection
-from db import get_karma
-import asyncio
+from config import UPVOTE_EMOJI, DOWNVOTE_EMOJI
 
 logger = logging.getLogger(__name__)
 
-# Helper functions to aggregate reaction data from the DB.
 def get_reaction_stats():
     conn = get_connection()
     c = conn.cursor()
     # Sum up reactions by reactor and recipient.
-    c.execute("""
-        SELECT reactor_id, 
-               SUM(CASE WHEN value > 0 THEN 1 ELSE 0 END) as up_given,
-               SUM(CASE WHEN value < 0 THEN 1 ELSE 0 END) as down_given
+    c.execute(f"""
+        SELECT reactor_id,
+               SUM(CASE WHEN value = ? THEN 1 ELSE 0 END) as up_given,
+               SUM(CASE WHEN value = ? THEN 1 ELSE 0 END) as down_given
         FROM reactions
         GROUP BY reactor_id
-    """)
+    """, (UPVOTE_EMOJI, DOWNVOTE_EMOJI))
     given = c.fetchall()
-    c.execute("""
-        SELECT recipient_id, 
-               SUM(CASE WHEN value > 0 THEN 1 ELSE 0 END) as up_received,
-               SUM(CASE WHEN value < 0 THEN 1 ELSE 0 END) as down_received
+
+    c.execute(f"""
+        SELECT reactee_id,
+               SUM(CASE WHEN value = ? THEN 1 ELSE 0 END) as up_received,
+               SUM(CASE WHEN value = ? THEN 1 ELSE 0 END) as down_received
         FROM reactions
-        GROUP BY recipient_id
-    """)
+        GROUP BY reactee_id
+    """, (UPVOTE_EMOJI, DOWNVOTE_EMOJI))
     received = c.fetchall()
+
     conn.close()
     return given, received
 
 def get_reaction_details():
-    # Return all reactions as list of rows.
     conn = get_connection()
     c = conn.cursor()
     c.execute("SELECT * FROM reactions")
@@ -66,17 +64,22 @@ class ReactionCommands(commands.Cog):
 
     @commands.command(name="stats", help="Display your reaction statistics (upvotes/downvotes given and received).")
     async def stats(self, ctx, user_id: int = None):
-        target = user_id if user_id else ctx.author.id
+        target = user_id or ctx.author.id
         conn = get_connection()
         c = conn.cursor()
-        c.execute("""
+        c.execute(f"""
             SELECT 
-                SUM(CASE WHEN reactor_id = ? AND value > 0 THEN 1 ELSE 0 END) as up_given,
-                SUM(CASE WHEN reactor_id = ? AND value < 0 THEN 1 ELSE 0 END) as down_given,
-                SUM(CASE WHEN recipient_id = ? AND value > 0 THEN 1 ELSE 0 END) as up_received,
-                SUM(CASE WHEN recipient_id = ? AND value < 0 THEN 1 ELSE 0 END) as down_received
+                SUM(CASE WHEN reactor_id = ? AND value = ? THEN 1 ELSE 0 END) as up_given,
+                SUM(CASE WHEN reactor_id = ? AND value = ? THEN 1 ELSE 0 END) as down_given,
+                SUM(CASE WHEN reactee_id = ? AND value = ? THEN 1 ELSE 0 END) as up_received,
+                SUM(CASE WHEN reactee_id = ? AND value = ? THEN 1 ELSE 0 END) as down_received
             FROM reactions
-        """, (target, target, target, target))
+        """, (
+            target, UPVOTE_EMOJI,
+            target, DOWNVOTE_EMOJI,
+            target, UPVOTE_EMOJI,
+            target, DOWNVOTE_EMOJI,
+        ))
         row = c.fetchone()
         conn.close()
         embed = discord.Embed(title=f"Reaction Stats for User {target}", color=0xFFFF00)
@@ -95,14 +98,13 @@ class ReactionCommands(commands.Cog):
     async def haters(self, ctx, top_n: int = 5):
         conn = get_connection()
         c = conn.cursor()
-        # Calculate ratio per reactor_id (up_given / down_given, with appropriate handling if down_given is 0)
-        c.execute("""
+        c.execute(f"""
             SELECT reactor_id,
-                   SUM(CASE WHEN value > 0 THEN 1 ELSE 0 END) as up_given,
-                   SUM(CASE WHEN value < 0 THEN 1 ELSE 0 END) as down_given
+                   SUM(CASE WHEN value = ? THEN 1 ELSE 0 END) as up_given,
+                   SUM(CASE WHEN value = ? THEN 1 ELSE 0 END) as down_given
             FROM reactions
             GROUP BY reactor_id
-        """)
+        """, (UPVOTE_EMOJI, DOWNVOTE_EMOJI))
         rows = c.fetchall()
         conn.close()
         ratios = []
@@ -125,13 +127,13 @@ class ReactionCommands(commands.Cog):
     async def popularity(self, ctx, top_n: int = 5):
         conn = get_connection()
         c = conn.cursor()
-        c.execute("""
-            SELECT recipient_id,
-                   SUM(CASE WHEN value > 0 THEN 1 ELSE 0 END) as up_received,
-                   SUM(CASE WHEN value < 0 THEN 1 ELSE 0 END) as down_received
+        c.execute(f"""
+            SELECT reactee_id,
+                   SUM(CASE WHEN value = ? THEN 1 ELSE 0 END) as up_received,
+                   SUM(CASE WHEN value = ? THEN 1 ELSE 0 END) as down_received
             FROM reactions
-            GROUP BY recipient_id
-        """)
+            GROUP BY reactee_id
+        """, (UPVOTE_EMOJI, DOWNVOTE_EMOJI))
         rows = c.fetchall()
         conn.close()
         ratios = []
@@ -139,7 +141,7 @@ class ReactionCommands(commands.Cog):
             up = row["up_received"] or 0
             down = row["down_received"] or 0
             ratio = up / down if down > 0 else up
-            ratios.append((row["recipient_id"], ratio))
+            ratios.append((row["reactee_id"], ratio))
         # For popularity, we want the highest ratio.
         ratios.sort(key=lambda x: x[1], reverse=True)
         embed = discord.Embed(title="Most Popular Users (by reactions received)", color=0x00DCB8)
@@ -156,19 +158,19 @@ class ReactionCommands(commands.Cog):
         conn = get_connection()
         c = conn.cursor()
         c.execute("""
-            SELECT recipient_id, COUNT(*) as count
-            FROM reactions
-            WHERE reactor_id = ?
-            GROUP BY recipient_id
-            ORDER BY count DESC
-            LIMIT ?
-        """, (target, top_n))
+                    SELECT reactee_id, COUNT(*) as count
+                    FROM reactions
+                    WHERE reactor_id = ?
+                    GROUP BY reactee_id
+                    ORDER BY count DESC
+                    LIMIT ?
+                """, (target, top_n))
         rows = c.fetchall()
         conn.close()
         embed = discord.Embed(title=f"Users {target} has reacted to", color=0xFFFF00)
         rank = 1
         for row in rows:
-            user = await self.bot.fetch_user(row["recipient_id"])
+            user = await self.bot.fetch_user(row["reactee_id"])
             embed.add_field(name=f"{rank}. {user.display_name}", value=f"Reactions: {row['count']}", inline=False)
             rank += 1
         await ctx.send(embed=embed)
@@ -179,13 +181,13 @@ class ReactionCommands(commands.Cog):
         conn = get_connection()
         c = conn.cursor()
         c.execute("""
-            SELECT reactor_id, COUNT(*) as count
-            FROM reactions
-            WHERE recipient_id = ?
-            GROUP BY reactor_id
-            ORDER BY count DESC
-            LIMIT ?
-        """, (target, top_n))
+                    SELECT reactor_id, COUNT(*) as count
+                    FROM reactions
+                    WHERE reactee_id = ?
+                    GROUP BY reactor_id
+                    ORDER BY count DESC
+                    LIMIT ?
+                """, (target, top_n))
         rows = c.fetchall()
         conn.close()
         embed = discord.Embed(title=f"Users who reacted to {target}", color=0xFFFF00)
@@ -198,17 +200,23 @@ class ReactionCommands(commands.Cog):
 
     @commands.command(name="topalltime", help="Show the top posts of all time based on reaction scores.")
     async def topalltime(self, ctx, top_n: int = 3):
-        # Assume we have a separate table or compute from reactions table.
-        # For simplicity, we use the reactions table to aggregate scores per message.
         conn = get_connection()
         c = conn.cursor()
-        c.execute("""
-            SELECT message_id, SUM(value) as score
+        # compute a net score: +1 for upvote, -1 for downvote
+        c.execute(f"""
+            SELECT message_id,
+                   SUM(
+                     CASE
+                       WHEN value = ? THEN 1
+                       WHEN value = ? THEN -1
+                       ELSE 0
+                     END
+                   ) as score
             FROM reactions
             GROUP BY message_id
             ORDER BY score DESC
             LIMIT ?
-        """, (top_n,))
+        """, (UPVOTE_EMOJI, DOWNVOTE_EMOJI, top_n))
         rows = c.fetchall()
         conn.close()
         if not rows:

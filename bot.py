@@ -19,6 +19,7 @@ from db import update_karma
 from openai_helper import get_chat_response
 from personalization import get_author_information
 from safety import ALARMING_WORDS, handle_alarming_words
+from utils import requires_credit
 
 # Set up logging
 setup_logging()
@@ -103,7 +104,7 @@ async def on_message(message):
     if isinstance(prefixes,str):
         prefixes = [prefixes]
     if any(message.content.startswith(prefix) for prefix in prefixes):
-        return await handle_prompt_chain(message)
+        return await handle_prompt_chain(ctx, message)
 
     # Special handling for messages that are replies to bot messages.
     if message.reference is not None:
@@ -113,7 +114,7 @@ async def on_message(message):
             replied_message = None
         if replied_message and replied_message.author == bot.user:
             if message.content.startswith("!tts"):
-                await bot.process_commands(message)
+                await bot.process_commands(message) # todo test/implement
                 return
             elif message.content.startswith("!rw"):
                 content = message.content[4:].strip()
@@ -129,11 +130,11 @@ async def on_message(message):
                         await message.reply(f"Error resending: {e}")
                 return
 
-    # Process commands normally.
-    await bot.process_commands(message)
+    await bot.process_commands(message) # do we need this?
 
 
-async def handle_prompt_chain(message):
+@requires_credit(lambda ctx, *args, **kwargs: 0.001)
+async def handle_prompt_chain(ctx, message):
     """
     Collects the conversation from a reply chain, builds a prompt,
     sends it to the AI, and replies using reply_split.

@@ -49,6 +49,8 @@ class AdminCommands(commands.Cog):
             return
         messages = {}
         count = 0
+        conn = get_connection()
+        c = conn.cursor()
         # Iterate through all text channels of the guild where the command was invoked.
         for channel in ctx.guild.text_channels:
             try:
@@ -76,15 +78,37 @@ class AdminCommands(commands.Cog):
                                 message.created_at.timestamp(),
                                 [att.url for att in message.attachments]
                             ]
+                        # Process reactions for this message
+                        for reaction in message.reactions:
+                            async for user in reaction.users():
+                                try:
+                                    # Insert or update reaction in DB
+                                    c.execute(
+                                        "SELECT * FROM reactions WHERE message_id = ? AND reactor_id = ? AND value = ?",
+                                        (msg_id, user.id, str(reaction.emoji)))
+                                    row = c.fetchone()
+                                    if row:
+                                        # Update reactee_id if needed
+                                        c.execute(
+                                            "UPDATE reactions SET reactee_id = ? WHERE message_id = ? AND reactor_id = ? AND value = ?",
+                                            (message.author.id, msg_id, user.id, str(reaction.emoji)))
+                                    else:
+                                        c.execute(
+                                            "INSERT INTO reactions (message_id, reactor_id, reactee_id, value) VALUES (?, ?, ?, ?)",
+                                            (msg_id, user.id, message.author.id, str(reaction.emoji)))
+                                except Exception as e:
+                                    logger.error(f"Error processing reaction: {e}")
                     except Exception as inner_e:
                         logger.error(f"Error processing message: {inner_e}")
             except Exception as e:
                 logger.error(f"Error accessing channel {channel.name}: {e}")
+        conn.commit()
+        conn.close()
         # Write to file
         os.makedirs("data", exist_ok=True)
         with open("data/messages.json", "w", encoding="utf-8") as f:
             json.dump(messages, f)
-        await ctx.send(f"Scraped {count} messages.")
+        await ctx.send(f"Scraped {count} messages and updated reactions.")
 
     @commands.command(name="resetusagedata", help="Manually reset user token balances (admin only).")
     async def resetusagedata(self, ctx):

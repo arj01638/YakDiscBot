@@ -16,11 +16,11 @@ class TokenCommands(commands.Cog):
             usage_balance = data["usage_balance"]
             bank_balance = data["bank_balance"]
         else:
-            usage_balance = 0
-            bank_balance = 0
+            await ctx.send("No data found for this user.")
+            return
         # Convert raw usage to dabloons using a conversion factor (example)
-        dabloons = int((usage_balance / 0.0000015) * (3.0/4.0))
-        bank_dabloons = int((bank_balance / 0.0000015) * (3.0/4.0))
+        dabloons = round(usage_balance * 250)
+        bank_dabloons = round(bank_balance * 250)
         embed = discord.Embed(
             title=f"{ctx.author.display_name}'s Finances",
             description=(f"Dabloons: **{dabloons:,}** 🪙\n"

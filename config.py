@@ -22,8 +22,8 @@ DEFAULT_VOICE = "nova"
 AVAILABLE_VOICES = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
 
 # Reaction emojis
-UPVOTE_EMOJI = os.getenv("UPVOTE_EMOJI", "⬆️")
-DOWNVOTE_EMOJI = os.getenv("DOWNVOTE_EMOJI", "⬇️")
+UPVOTE_EMOJI = '🔥'
+DOWNVOTE_EMOJI ='🍅'
 
 # Other settings
 INITIAL_DABLOONS = 0.5  # starting dollar balance
