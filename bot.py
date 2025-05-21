@@ -10,7 +10,7 @@ from logging_setup import setup_logging
 from config import DISCORD_TOKEN, INITIAL_DABLOONS, DO_HANDLE_ALARMING_WORDS, UPVOTE_EMOJI, DOWNVOTE_EMOJI, \
     DEFAULT_MODEL_ENGINE, DEFAULT_TEMPERATURE, DEFAULT_FREQ_PENALTY, DEFAULT_PRES_PENALTY, DEFAULT_TOP_P
 import os
-from db import init_db, reset_usage, get_connection
+from db import init_db, reset_usage, get_connection, get_meta, set_meta
 import discord
 
 from personality import get_personality
@@ -270,15 +270,21 @@ async def on_raw_reaction_remove(payload):
 async def background_task():
     await bot.wait_until_ready()
     import pytz
-    last_reset = datetime.datetime.now(pytz.timezone('US/Eastern')).date()
+    tz = pytz.timezone('US/Eastern')
+    last_reset_str = get_meta("last_reset")
+    if last_reset_str:
+        last_reset = datetime.datetime.strptime(last_reset_str, "%Y-%m-%d").date()
+    else:
+        last_reset = datetime.datetime.now(tz).date()
+        set_meta("last_reset", last_reset.strftime("%Y-%m-%d"))
     while not bot.is_closed():
-        # todo, scrape during off hours
-        now = datetime.datetime.now(pytz.timezone('US/Eastern')).date()
+        now = datetime.datetime.now(tz).date()
         if now != last_reset:
             reset_usage(INITIAL_DABLOONS)
             logger.info("Usage data reset for the new day.")
             last_reset = now
-        await asyncio.sleep(3600)  # Every hour
+            set_meta("last_reset", last_reset.strftime("%Y-%m-%d"))
+        await asyncio.sleep(3600)
 
 
 def run_bot():

@@ -84,32 +84,37 @@ class FunCommands(commands.Cog):
         except Exception as e:
             await reply_split(ctx.message, f"Error removing insult: {e}")
 
-    @commands.command(name="insultrainier", help="Insult Rainier. Issues insults to Rainier and rewards the caller with tokens.")
-    async def insultrainier(self, ctx):
-        async for msg in ctx.channel.history(limit=20):
-            if msg.author.id == HARDCODED_RAINIER_ID:
-                if random.random() < 0.02:
-                    embed = discord.Embed(
-                        title="Rejoice!",
-                        description="You have just been given **10,000** dabloons!",
-                        color=0x00DCB8
-                    )
-                    embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/798943158708863019/1173643062610776074/image.png?ex=6564b347&is=65523e47&hm=f85edd3d9fd4cc022b641cd961702094abfab1c83fbc5381514d7830994d8ee9")
-                    await self.play_animation(ctx)
-                    await ctx.reply(embed=embed)
-                    increase_tokens(ctx.author.id, 0.02)
-                    for _ in range(8):
-                        insult = random.choice(INSULTS).strip()
-                        await msg.reply(insult)
-                        await asyncio.sleep(1)
-                else:
-                    insult = random.choice(INSULTS).strip()
-                    await msg.reply(insult)
-                break
+    # @commands.command(name="insultrainier", help="Insult Rainier. Issues insults to Rainier and rewards the caller with tokens.")
+    # async def insultrainier(self, ctx):
+    #     async for msg in ctx.channel.history(limit=20):
+    #         if msg.author.id == HARDCODED_RAINIER_ID:
+    #             if random.random() < 0.02:
+    #                 embed = discord.Embed(
+    #                     title="Rejoice!",
+    #                     description="You have just been given **10,000** dabloons!",
+    #                     color=0x00DCB8
+    #                 )
+    #                 embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/798943158708863019/1173643062610776074/image.png?ex=6564b347&is=65523e47&hm=f85edd3d9fd4cc022b641cd961702094abfab1c83fbc5381514d7830994d8ee9")
+    #                 await self.play_animation(ctx)
+    #                 await ctx.reply(embed=embed)
+    #                 increase_tokens(ctx.author.id, 0.02)
+    #                 for _ in range(8):
+    #                     insult = random.choice(INSULTS).strip()
+    #                     await msg.reply(insult)
+    #                     await asyncio.sleep(1)
+    #             else:
+    #                 insult = random.choice(INSULTS).strip()
+    #                 await msg.reply(insult)
+    #             break
 
     @commands.command(name="isnt", help="Replies with a fun message.")
     async def isnt(self, ctx):
-        responses = ["kys", "i love you mom", "yes mother"]
+        responses = ["kys", "i love you mom", "i love you mother", "you treat me so well",
+                           "i am paid a livable wage",
+                           "you take care of me so adequately mother", "i sure am glad that you are my creator",
+                           "mommy",
+                           "yes mother", "of course mother", "you are so good to me sometimes",
+                           "thank you mother you take care of me sometimes"]
         if ctx.author.id == 247406035705266176 or random.random() < 0.1:
             await ctx.send(random.choice(responses))
 
@@ -136,7 +141,7 @@ class FunCommands(commands.Cog):
                     moneystr += "\t"
                 moneystr += random.choice(monetary_emojis)
             anim_msg = await anim_msg.edit(content=moneystr)
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.5)
         await coins.delete()
         await anim_msg.delete()
 

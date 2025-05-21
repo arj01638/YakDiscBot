@@ -57,9 +57,33 @@ def init_db(bot_id):
     INSERT OR IGNORE INTO identities (user_id, name, description) VALUES (?, ?, ?)
     """, (bot_id, "Gluemo", ""))
 
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS meta (
+        key TEXT PRIMARY KEY,
+        value TEXT
+    )
+    """)
+
     conn.commit()
     conn.close()
 
+
+def set_meta(key, value):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("REPLACE INTO meta (key, value) VALUES (?, ?)", (key, value))
+    conn.commit()
+    conn.close()
+
+def get_meta(key):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT value FROM meta WHERE key = ?", (key,))
+    row = c.fetchone()
+    conn.close()
+    return row["value"] if row else None
 
 def get_name(user_id):
     conn = get_connection()
