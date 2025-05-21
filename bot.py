@@ -103,7 +103,7 @@ async def on_message(message):
     prefixes = await bot.get_prefix(message)
     if isinstance(prefixes,str):
         prefixes = [prefixes]
-    if any(message.content.startswith(prefix) for prefix in prefixes):
+    if message.reference is None and any(message.content.startswith(prefix) for prefix in prefixes):
         return await handle_prompt_chain(ctx, message)
 
     # Special handling for messages that are replies to bot messages.
@@ -116,19 +116,37 @@ async def on_message(message):
             if message.content.startswith("!tts"):
                 await bot.process_commands(message) # todo test/implement
                 return
-            elif message.content.startswith("!rw"):
-                content = message.content[4:].strip()
-                await replied_message.reply(content)
-                return
-            elif message.content.startswith("!rs"):
-                if replied_message.reference:
+            elif message.content.startswith("!rw"): # rewrite bot reply
+                content = message.content[3:].strip()
+                grandparent = replied_message.reference
+                if grandparent:
                     try:
-                        original_msg = await message.channel.fetch_message(replied_message.reference.message_id)
-                        new_content = original_msg.content + message.content.replace("!rs", "", 1)
-                        await original_msg.reply(new_content)
+                        original_msg = await message.channel.fetch_message(grandparent.message_id) # todo replace all with get_msg type command
+                        await original_msg.reply(content)
+                    except Exception as e:
+                        await message.reply(f"Error rewriting: {e}")
+                else:
+                    await message.reply("No message to rewrite to.")
+                return
+            elif message.content.startswith("!rs"): # "resend" grandparent message
+                grandparent = replied_message.reference
+                if grandparent:
+                    try:
+                        original_msg = await message.channel.fetch_message(grandparent.message_id)
+                        # Remove "!rs" and any leading/trailing whitespace
+                        extra_content = message.content[3:].strip()
+                        # Compose new content: original + extra
+                        new_content = original_msg.content
+                        if extra_content:
+                            new_content += " " + extra_content
+                        await message.channel.send(new_content)
                     except Exception as e:
                         await message.reply(f"Error resending: {e}")
+                else:
+                    await message.reply("No message to resend.")
                 return
+            else:
+                return await handle_prompt_chain(ctx, message)
 
     await bot.process_commands(message) # do we need this?
 
@@ -182,6 +200,9 @@ async def handle_prompt_chain(ctx, message):
                     pass
 
         clean_content = param_pattern.sub("", msg.content).strip()
+
+        if clean_content.startswith("!"):
+            clean_content = clean_content[1:]
 
         prompt_lines.append(f"{msg.author.id}: {clean_content}")
         author_ids.append(msg.author.id)
