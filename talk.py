@@ -1,17 +1,18 @@
+import logging
 import re
-
-from bot import bot
+from commands.abbreviation import expand_abbreviations
 from config import DEFAULT_MODEL_ENGINE, DEFAULT_TEMPERATURE, DEFAULT_FREQ_PENALTY, DEFAULT_PRES_PENALTY, DEFAULT_TOP_P, \
     BOT_NAME
+from db import get_name, get_description, set_name
 from discord_helper import reply_split
 from openai_helper import get_chat_response
 from personality import get_personality
-from personalization import get_author_information
 from utils import requires_credit
 
+logger = logging.getLogger(__name__)
 
 @requires_credit(lambda ctx, *args, **kwargs: 0.001)
-async def handle_prompt_chain(ctx, message):
+async def handle_prompt_chain(ctx, message, bot_id):
     """
     Collects the conversation from a reply chain, builds a prompt,
     sends it to the AI, and replies using reply_split.
@@ -30,7 +31,7 @@ async def handle_prompt_chain(ctx, message):
     chain.reverse()  # earliest first
 
     prompt_lines = []
-    author_ids = [bot.user.id]
+    author_ids = [bot_id]
 
     params = {"model_engine": DEFAULT_MODEL_ENGINE,
               "temperature": DEFAULT_TEMPERATURE,
@@ -38,6 +39,7 @@ async def handle_prompt_chain(ctx, message):
               "pres_penalty": DEFAULT_PRES_PENALTY,
               "top_p": DEFAULT_TOP_P}
     param_pattern = re.compile(r"\b(usemodel|usetemp|usefreq|usepres|usetopp)\s+(\S+)", re.IGNORECASE)
+    user_id_pattern = re.compile(r"<@!?(\d{17,19})>")
 
     for msg in chain:
         # Extract parameters from message (later messages override earlier ones)
@@ -63,8 +65,12 @@ async def handle_prompt_chain(ctx, message):
         if clean_content.startswith("!"):
             clean_content = clean_content[1:]
 
+        clean_content = expand_abbreviations(clean_content, msg.guild.id, msg.author.id)
         prompt_lines.append(f"{msg.author.id}: {clean_content}")
+
         author_ids.append(msg.author.id)
+        mentioned_ids = user_id_pattern.findall(msg.content)
+        author_ids.extend(mentioned_ids)
 
     # authors_information = {author_id: (name, description), ...}
     authors_information = get_author_information(author_ids, message.guild)
@@ -87,7 +93,6 @@ async def handle_prompt_chain(ctx, message):
         {"role": "system",
          "content": system_msg}
     ]
-    bot_id = bot.user.id
     for i, line in enumerate(prompt_lines):
         if line.startswith(f"{BOT_NAME}:"):
             messages_prompt.append({"role": "assistant", "content": line.replace(f"{BOT_NAME}:", "")})
@@ -103,3 +108,22 @@ async def handle_prompt_chain(ctx, message):
                                        user_id=message.author.id)
 
     await reply_split(message, response)
+
+
+def get_author_information(author_ids, guild):
+    authors_information = {}
+    for author in author_ids:
+        name = get_name(author)
+        description = get_description(author)
+        if name:
+            authors_information[author] = (name, description)
+        else:
+            member = guild.get_member(author)
+            if member:
+                name = member.nick or member.display_name
+                set_name(author, name)
+                authors_information[author] = (name, description)
+            else:
+                logger.warning(f"Could not find member for user ID {author} in guild {guild.id}")
+                authors_information[author] = (str(author), description)
+    return authors_information

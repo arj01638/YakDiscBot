@@ -57,6 +57,7 @@ def init_db(bot_id):
     INSERT OR IGNORE INTO identities (user_id, name, description) VALUES (?, ?, ?)
     """, (bot_id, BOT_NAME, ""))
 
+    # meta info, like last reset date
     conn = get_connection()
     c = conn.cursor()
     c.execute("""
@@ -66,9 +67,57 @@ def init_db(bot_id):
     )
     """)
 
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS abbreviations (
+        guild_id INTEGER,
+        user_id INTEGER,
+        key TEXT,
+        value TEXT,
+        PRIMARY KEY (guild_id, user_id, key)
+    )
+    """)
+
     conn.commit()
     conn.close()
 
+def set_abbreviation(guild_id, user_id, key, value):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("""
+        INSERT OR REPLACE INTO abbreviations (guild_id, user_id, key, value)
+        VALUES (?, ?, ?, ?)
+    """, (guild_id, user_id, key, value))
+    conn.commit()
+    conn.close()
+
+def get_abbreviation(guild_id, user_id, key):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("""
+        SELECT value FROM abbreviations WHERE guild_id = ? AND user_id = ? AND key = ?
+    """, (guild_id, user_id, key))
+    row = c.fetchone()
+    conn.close()
+    return row["value"] if row else None
+
+def get_all_abbreviations(guild_id, user_id):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("""
+        SELECT key, value FROM abbreviations WHERE guild_id = ? AND user_id = ?
+    """, (guild_id, user_id))
+    rows = c.fetchall()
+    conn.close()
+    return {row["key"]: row["value"] for row in rows}
+
+def delete_abbreviation(guild_id, user_id, key):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("""
+        DELETE FROM abbreviations WHERE guild_id = ? AND user_id = ? AND key = ?
+    """, (guild_id, user_id, key))
+    conn.commit()
+    conn.close()
 
 def set_meta(key, value):
     conn = get_connection()

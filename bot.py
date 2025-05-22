@@ -99,7 +99,7 @@ async def on_message(message):
         prefixes = [prefixes]
     if message.reference is None and any(message.content.startswith(prefix) for prefix in prefixes):
         async with message.channel.typing():
-            return await handle_prompt_chain(ctx, message)
+            return await handle_prompt_chain(ctx, message, bot.user.id)
 
     # Special handling for messages that are replies to bot messages.
     if message.reference is not None:
@@ -128,20 +128,20 @@ async def on_message(message):
                 if grandparent:
                     try:
                         original_msg = await message.channel.fetch_message(grandparent.message_id)
-                        # Remove "!rs" and any leading/trailing whitespace
-                        extra_content = message.content[3:].strip()
-                        # Compose new content: original + extra
-                        new_content = original_msg.content
-                        if extra_content:
-                            new_content += " " + extra_content
-                        await message.channel.send(new_content)
+                        # # Remove "!rs" and any leading/trailing whitespace
+                        # extra_content = message.content[3:].strip()
+                        # # Compose new content: original + extra
+                        # new_content = original_msg.content
+                        # if extra_content:
+                        #     new_content += " " + extra_content # todo when we implement get_msg make new_content actually do something
+                        await handle_prompt_chain(ctx, original_msg, bot.user.id)
                     except Exception as e:
                         await message.reply(f"Error resending: {e}")
                 else:
                     await message.reply("No message to resend.")
                 return
             else:
-                return await handle_prompt_chain(ctx, message)
+                return await handle_prompt_chain(ctx, message, bot.user.id)
 
     async with message.channel.typing():
         await bot.process_commands(message) # do we need this?
