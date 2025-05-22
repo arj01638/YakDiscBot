@@ -20,7 +20,7 @@ class ImageCommands(commands.Cog):
         self.bot = bot
 
     @commands.command(name="dalle3", help="Generate an image using DALL-E 3.")
-    @requires_credit(lambda ctx, *args, **kwargs: pricing["dalle3"]["1024x1024"])
+    @requires_credit(lambda ctx, *args, **kwargs: pricing["dall-e-3"]["1024x1024"])
     async def dalle3(self, ctx, *, arg):
         author_id = ctx.author.id
         size = "1024x1024"
@@ -43,7 +43,7 @@ class ImageCommands(commands.Cog):
         await ctx.reply(file=discord.File(io.BytesIO(img_bytes), filename="image.png"))
 
     @commands.command(name="dalle2", help="Generate an image using DALL-E 2.")
-    @requires_credit(lambda ctx, *args, **kwargs: pricing["dalle2"]["1024x1024"])
+    @requires_credit(lambda ctx, *args, **kwargs: pricing["dall-e-2"]["1024x1024"])
     async def dalle2(self, ctx, *, arg):
         author_id = ctx.author.id
         size = "1024x1024"

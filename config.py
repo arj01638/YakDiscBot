@@ -18,7 +18,7 @@ DEFAULT_TOP_P = 0.9
 # TTS settings
 TTS_MODEL = "tts-1"
 TTS_HD_MODEL = "tts-1-hd"
-DEFAULT_VOICE = "nova"
+DEFAULT_VOICE = "onyx"
 AVAILABLE_VOICES = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
 
 # Reaction emojis
@@ -31,3 +31,5 @@ INITIAL_DABLOONS = 0.5  # starting dollar balance
 ADMIN_USER_ID = int(os.getenv("ADMIN_USER_ID", "0"))
 
 DO_HANDLE_ALARMING_WORDS = False
+
+BOT_NAME = "Gluemo"

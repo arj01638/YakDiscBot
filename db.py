@@ -1,7 +1,7 @@
 import sqlite3
 import os
 
-from config import INITIAL_DABLOONS
+from config import INITIAL_DABLOONS, BOT_NAME, ADMIN_USER_ID
 
 DB_PATH = os.path.join("data", "bot.db")
 
@@ -55,7 +55,7 @@ def init_db(bot_id):
     # add to identities table bot_id as Gluemo
     c.execute("""
     INSERT OR IGNORE INTO identities (user_id, name, description) VALUES (?, ?, ?)
-    """, (bot_id, "Gluemo", ""))
+    """, (bot_id, BOT_NAME, ""))
 
     conn = get_connection()
     c = conn.cursor()
@@ -173,6 +173,8 @@ def reset_usage(initial_balance):
     conn = get_connection()
     c = conn.cursor()
     c.execute("UPDATE usage SET usage_balance = ?", (initial_balance,))
+    # set admin user_id to 10 * initial_balance
+    c.execute("UPDATE usage SET usage_balance = ? WHERE user_id = ?", (10 * initial_balance, ADMIN_USER_ID))
     conn.commit()
     conn.close()
 

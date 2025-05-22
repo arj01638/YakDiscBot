@@ -193,7 +193,7 @@ async def get_image(model, prompt, user_id, n, size, quality):
         if model == "dall-e-3" and n != 1:
             raise ValueError("DALL-E 3 only supports n=1")
         # todo write checks for quality congruence with model
-        response = await openai.images.generate(
+        response = openai.images.generate(
             model=model,
             prompt=prompt,
             n=n,
