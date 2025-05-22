@@ -1,6 +1,9 @@
 import json
 import os
 
+from config import TEST_SERVER_ID
+
+
 def load_static_config():
     config_path = os.path.join("data", "static_config.json")
     if os.path.exists(config_path):
@@ -13,6 +16,8 @@ def load_static_config():
 
 static_config = load_static_config()
 
-def get_personality(guild_name, message_list):
-    # old bot used different personalities per server but no need for that right now
+def get_personality(guild_id, message_list):
+    # old bot used different personalities per server but no need for that right now except for test server
+    if guild_id == TEST_SERVER_ID:
+        return None
     return static_config["default_personality"]

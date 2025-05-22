@@ -2,7 +2,7 @@ import logging
 import re
 from commands.abbreviation import expand_abbreviations
 from config import DEFAULT_MODEL_ENGINE, DEFAULT_TEMPERATURE, DEFAULT_FREQ_PENALTY, DEFAULT_PRES_PENALTY, DEFAULT_TOP_P, \
-    BOT_NAME
+    BOT_NAME, TEST_SERVER_ID
 from db import get_name, get_description, set_name
 from discord_helper import reply_split
 from openai_helper import get_chat_response
@@ -17,6 +17,8 @@ async def handle_prompt_chain(ctx, message, bot_id):
     Collects the conversation from a reply chain, builds a prompt,
     sends it to the AI, and replies using reply_split.
     """
+    is_test_server = ctx.guild.id == TEST_SERVER_ID
+
     chain = []
     current = message
     while current:
@@ -66,11 +68,15 @@ async def handle_prompt_chain(ctx, message, bot_id):
             clean_content = clean_content[1:]
 
         clean_content = expand_abbreviations(clean_content, msg.guild.id, msg.author.id)
-        prompt_lines.append(f"{msg.author.id}: {clean_content}")
+        if is_test_server:
+            prompt_lines.append(f"{clean_content}")
+        else:
+            prompt_lines.append(f"{msg.author.id}: {clean_content}")
 
-        author_ids.append(msg.author.id)
-        mentioned_ids = user_id_pattern.findall(msg.content)
-        author_ids.extend(mentioned_ids)
+        if not is_test_server:
+            author_ids.append(msg.author.id)
+            mentioned_ids = user_id_pattern.findall(msg.content)
+            author_ids.extend(mentioned_ids)
 
     # authors_information = {author_id: (name, description), ...}
     authors_information = get_author_information(author_ids, message.guild)
@@ -82,17 +88,20 @@ async def handle_prompt_chain(ctx, message, bot_id):
                 name, _ = authors_information[user_id]
                 prompt_lines[i] = prompt_lines[i].replace(str(user_id), name)
 
-    personality = get_personality(message.guild.name, prompt_lines)
+    personality = get_personality(message.guild.id, prompt_lines)
     system_msg = personality
     for author_id in authors_information:
         name, description = authors_information[author_id]
         if description:
             system_msg += f"\n{name}: {description}"
 
-    messages_prompt = [
-        {"role": "system",
-         "content": system_msg}
-    ]
+    if system_msg:
+        messages_prompt = [
+            {"role": "system",
+             "content": system_msg}
+        ]
+    else:
+        messages_prompt = []
     for i, line in enumerate(prompt_lines):
         if line.startswith(f"{BOT_NAME}:"):
             messages_prompt.append({"role": "assistant", "content": line.replace(f"{BOT_NAME}:", "")})
