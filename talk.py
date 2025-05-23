@@ -94,7 +94,7 @@ async def handle_prompt_chain(ctx, message, bot_id):
     for i, line in enumerate(prompt_lines):
         # this would seem inefficient but this is done to handle pings within messages
         for user_id in author_ids:
-            if str(user_id) in line:
+            if str(user_id) in line[1]:
                 name, _ = authors_information[user_id]
                 prompt_lines[i][1] = prompt_lines[i][1].replace(str(user_id), name)
 
