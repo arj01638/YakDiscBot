@@ -143,13 +143,13 @@ async def handle_prompt_chain(ctx, message, bot_id):
 
     await reply_split(message, response)
 
-
 def get_author_information(author_ids, guild):
+    print(f"Author IDs: {author_ids}")
     authors_information = {}
     for author in author_ids:
         name = get_name(author)
-        description = get_description(author)
         if name:
+            description = get_description(author)
             authors_information[author] = (name, description)
         else:
             member = guild.get_member(author)
