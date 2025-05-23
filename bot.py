@@ -143,8 +143,7 @@ async def on_message(message):
             else:
                 return await handle_prompt_chain(ctx, message, bot.user.id)
 
-    async with message.channel.typing():
-        await bot.process_commands(message) # do we need this?
+    await bot.process_commands(message) # do we need this?
 
 
 @bot.event

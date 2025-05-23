@@ -7,7 +7,7 @@ import io
 import discord
 
 from discord_helper import reply_split
-from openai_helper import get_image
+from openai_helper import get_image, edit_image
 from config import STABILITY_API_KEY
 from db import update_usage
 from utils import requires_credit
@@ -89,6 +89,32 @@ class ImageCommands(commands.Cog):
         image_b64 = response.data[0].b64_json
         img_bytes = base64.b64decode(image_b64)
         await ctx.reply(file=discord.File(io.BytesIO(img_bytes), filename="image.png"))
+
+    @commands.command(name="editimage", help="Edit an image using GPT-IMAGE-1.")
+    @requires_credit(lambda ctx, *args, **kwargs: pricing["gpt-image-1"]["high"])
+    async def editimage(self, ctx, *, arg):
+        author_id = ctx.author.id
+        # check for message attachments first, then check for replied message attachments if there are no attachments
+        images = []
+        if ctx.message.attachments:
+            images = ctx.message.attachments
+        elif ctx.message.reference:
+            try:
+                replied_message = await ctx.channel.fetch_message(ctx.message.reference.message_id)
+                if replied_message.attachments:
+                    images = replied_message.attachments
+            except Exception as e:
+                await reply_split(ctx.message, str(e))
+                return
+        else:
+            await reply_split(ctx.message, "Please attach or reply to an image to use this command!")
+            return
+        images_urls = [image.url for image in images]
+        response = await edit_image(prompt=arg, user_id=author_id, image_urls=images_urls)
+        image_b64 = response.data[0].b64_json
+        img_bytes = base64.b64decode(image_b64)
+        await ctx.reply(file=discord.File(io.BytesIO(img_bytes), filename="image.png"))
+
 
     # @commands.command(name="sdultra", help="Generate an image using Stability SD Ultra.")
     # async def sdultra(self, ctx, *, arg): # todo, move a lot of this function to stability_helper.py

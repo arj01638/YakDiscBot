@@ -68,15 +68,25 @@ async def handle_prompt_chain(ctx, message, bot_id):
             clean_content = clean_content[1:]
 
         clean_content = expand_abbreviations(clean_content, msg.guild.id, msg.author.id)
-        if is_test_server:
-            prompt_lines.append(f"{clean_content}")
-        else:
-            prompt_lines.append(f"{msg.author.id}: {clean_content}")
+        prompt_lines.append(["assistant" if msg.author.id == bot_id else "user",
+                            f"{clean_content}" if is_test_server or msg.author.id == bot_id else f"{msg.author.id}: {clean_content}",
+                            msg.attachments])
 
         if not is_test_server:
             author_ids.append(msg.author.id)
             mentioned_ids = user_id_pattern.findall(msg.content)
             author_ids.extend(mentioned_ids)
+
+    # Collapse bck-to-back bot messages
+    collapsed = []
+    for role, text, attachments in prompt_lines:
+        if collapsed and role == "assistant" and collapsed[-1][0] == "assistant":
+            # merge with previous assistant turn
+            collapsed[-1][1] += text
+            collapsed[-1][2].extend(attachments)
+        else:
+            collapsed.append([role, text, attachments])
+    prompt_lines = collapsed
 
     # authors_information = {author_id: (name, description), ...}
     authors_information = get_author_information(author_ids, message.guild)
@@ -86,27 +96,42 @@ async def handle_prompt_chain(ctx, message, bot_id):
         for user_id in author_ids:
             if str(user_id) in line:
                 name, _ = authors_information[user_id]
-                prompt_lines[i] = prompt_lines[i].replace(str(user_id), name)
+                prompt_lines[i][1] = prompt_lines[i][1].replace(str(user_id), name)
 
     personality = get_personality(message.guild.id, prompt_lines)
     system_msg = personality
-    for author_id in authors_information:
-        name, description = authors_information[author_id]
-        if description:
-            system_msg += f"\n{name}: {description}"
+    if not is_test_server:
+        for author_id in authors_information:
+            name, description = authors_information[author_id]
+            if description:
+                system_msg += f"\n{name}: {description}"
 
-    if system_msg:
-        messages_prompt = [
-            {"role": "system",
-             "content": system_msg}
-        ]
-    else:
-        messages_prompt = []
-    for i, line in enumerate(prompt_lines):
-        if line.startswith(f"{BOT_NAME}:"):
-            messages_prompt.append({"role": "assistant", "content": line.replace(f"{BOT_NAME}:", "")})
+
+    messages_prompt = [
+        {"role": "system",
+         "content": system_msg}
+    ] if system_msg else []
+
+    for role, text, attachments in prompt_lines:
+        if not attachments:
+            messages_prompt.append({
+                "role": role,
+                "content": text
+            })
         else:
-            messages_prompt.append({"role": "user", "content": line})
+            content = [{"type": "text", "text": text}]
+            for attachment in attachments:
+                if attachment.url:
+                    content.append({
+                        "type": "image_url",
+                        "image_url": {"url": attachment.url}
+                    })
+                else:
+                    logger.warning(f"Attachment URL not found for message ID {attachment.id}")
+            messages_prompt.append({
+                "role": role,
+                "content": content
+            })
 
     response = await get_chat_response(messages_prompt,
                                        model_engine=params["model_engine"],

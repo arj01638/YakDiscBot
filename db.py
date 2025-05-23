@@ -46,7 +46,7 @@ def init_db(bot_id):
     # Identities table: user_id, name, description
     c.execute("""
     CREATE TABLE IF NOT EXISTS identities (
-        user_id INTEGER PRIMARY KEY,
+        user_id INTEGER,
         name TEXT,
         description TEXT
     )

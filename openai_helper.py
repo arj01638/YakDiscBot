@@ -1,11 +1,9 @@
-import json
-
-import openai
-import tiktoken
+import mimetypes
+import os
+from io import BytesIO
+import requests
 import logging
-
 from openai import OpenAI
-
 from config import OPENAI_API_KEY, DEFAULT_MODEL_ENGINE, DEFAULT_TEMPERATURE, DEFAULT_FREQ_PENALTY, \
     DEFAULT_PRES_PENALTY, DEFAULT_TOP_P
 from db import update_usage
@@ -91,7 +89,7 @@ pricing = {
         "output": 4.40 / M
     },
     "gpt-image-1": {
-        "input": 5.00 / M, # todo charge for image context read too?
+        "input": 5.00 / M,
         "medium": 0.042,
         "high": 0.167,
     },
@@ -172,7 +170,7 @@ async def get_chat_response(messages,
 
 async def get_tts(text, model, user_id, voice="onyx"):
     try:
-        response = await openai.Audio.speech.create(
+        response = await client.Audio.speech.create(
             model=model,
             voice=voice,
             input=text
@@ -193,7 +191,7 @@ async def get_image(model, prompt, user_id, n, size, quality):
         if model == "dall-e-3" and n != 1:
             raise ValueError("DALL-E 3 only supports n=1")
         # todo write checks for quality congruence with model
-        response = openai.images.generate(
+        response = client.images.generate(
             model=model,
             prompt=prompt,
             n=n,
@@ -213,6 +211,35 @@ async def get_image(model, prompt, user_id, n, size, quality):
         return response
     except Exception as e:
         logger.error(f"Image generation error: {e}")
+        raise e
+
+async def edit_image(prompt, user_id, image_urls):
+    try:
+        images = []
+        for url in image_urls:
+            resp = requests.get(url, stream=True, timeout=10)
+            resp.raise_for_status()
+            buf = BytesIO(resp.content)
+            filename = os.path.basename(url).split("?")[0]
+            buf.name = filename
+            mime_type = resp.headers.get("Content-Type", "").split(";")[0]
+            if not mime_type or mime_type == "application/octet-stream":
+                ext = os.path.splitext(filename)[1].lower()
+                mime_type = mimetypes.types_map.get(ext, "image/png")
+            images.append((filename, buf, mime_type))
+
+        response = client.images.edit(
+            model="gpt-image-1",
+            prompt=prompt,
+            image=images,
+        )
+        total_cost = pricing["gpt-image-1"]["high"]
+        logger.info(f"Image editing cost: {total_cost}")
+        update_usage(user_id, total_cost)
+
+        return response
+    except Exception as e:
+        logger.error(f"Image editing error: {e}")
         raise e
 
 # def count_tokens(text, model_engine):
