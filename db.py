@@ -173,6 +173,13 @@ def get_usage(user_id):
     c = conn.cursor()
     c.execute("SELECT usage_balance, bank_balance FROM usage WHERE user_id = ?", (user_id,))
     row = c.fetchone()
+    if not row:
+        # put them in database
+        c.execute("INSERT INTO usage (user_id, usage_balance, bank_balance) VALUES (?, ?, ?)",
+                    (user_id, INITIAL_DABLOONS, 0))
+        conn.commit()
+        c.execute("SELECT usage_balance, bank_balance FROM usage WHERE user_id = ?", (user_id,))
+        row = c.fetchone()
     conn.close()
     return row if row else None
 
