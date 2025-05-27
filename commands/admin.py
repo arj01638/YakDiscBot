@@ -18,6 +18,23 @@ class AdminCommands(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+    @commands.command(name="droptable", help="Drop the provided table (admin only).")
+    async def droptable(self, ctx, table_name: str):
+        if not is_admin(ctx):
+            await ctx.send("You do not have permission to use this command.")
+            return
+        conn = get_connection()
+        c = conn.cursor()
+        try:
+            c.execute(f"DROP TABLE IF EXISTS {table_name}")
+            conn.commit()
+            await ctx.send(f"Table {table_name} has been dropped.")
+        except sqlite3.Error as e:
+            await ctx.send(f"Error dropping table: {e}")
+        finally:
+            conn.close()
+
+
     @commands.command(name="profilememory", help="Profile memory usage of a given command. Usage: !profilememory <command_name> [arg]")
     async def profilememory(self, ctx, command_name: str, arg: str = ""):
         if not is_admin(ctx):
