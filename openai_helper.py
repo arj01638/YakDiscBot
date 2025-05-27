@@ -167,7 +167,7 @@ def update_user_memory(user_id, memory):
         set_description(int(user_id), memory)
         logger.info(f"Updated memory for user {user_id}")
         logger.info(f"New memory: {memory}")
-        return {"status": "success", "message": "Memory updated successfully."}
+        return {"status": "success", "message": f"Memory for user {user_id} updated successfully to '{memory}'."}
     except Exception as e:
         logger.error(f"Error updating user memory: {e}")
         return {"status": "error", "message": str(e)}
@@ -177,7 +177,7 @@ def update_user_name(user_id, name):
     try:
         set_name(int(user_id), name)
         logger.info(f"Updated name for user {user_id} to {name}")
-        return {"status": "success", "message": "Name updated successfully."}
+        return {"status": "success", "message": f"Name for user {user_id} updated successfully to '{name}'."}
     except Exception as e:
         logger.error(f"Error updating user name: {e}")
         return {"status": "error", "message": str(e)}
