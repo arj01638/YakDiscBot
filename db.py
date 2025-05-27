@@ -263,26 +263,23 @@ def update_karma(guild_id, user_id, delta):
     conn.close()
 
 
+# python
 def add_reaction(message_id, user_id, author_id, value):
+    value = str(value)
     conn = get_connection()
     c = conn.cursor()
-    # Check if the reaction already exists
-    c.execute("SELECT * FROM reactions WHERE message_id = ? AND reactor_id = ? AND value = ?",
-              (message_id, user_id, value))
-    row = c.fetchone()
-    if row:
-        # Update the existing reaction
-        c.execute("UPDATE reactions SET reactee_id = ? WHERE message_id = ? AND reactor_id = ? AND value = ?",
-                  (author_id, message_id, user_id, value))
-    else:
-        # Insert a new reaction
-        c.execute("INSERT INTO reactions (message_id, reactor_id, reactee_id, value) VALUES (?, ?, ?, ?)",
-                  (message_id, user_id, author_id, value))
+    c.execute("""
+        INSERT INTO reactions (message_id, reactor_id, reactee_id, value)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(message_id, reactor_id, value) DO UPDATE
+          SET reactee_id = excluded.reactee_id
+    """, (message_id, user_id, author_id, value))
     conn.commit()
     conn.close()
 
 
 def remove_reaction(message_id, user_id, value):
+    value = str(value)
     conn = get_connection()
     c = conn.cursor()
     # Delete the reaction
