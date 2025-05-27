@@ -147,6 +147,8 @@ pricing = {
 def update_user_memory(user_id, memory):
     try:
         set_description(user_id, memory)
+        logger.info(f"Updated memory for user {user_id}")
+        logger.debug(f"New memory: {memory}")
         return {"status": "success", "message": "Memory updated successfully."}
     except Exception as e:
         logger.error(f"Error updating user memory: {e}")
@@ -156,6 +158,7 @@ def update_user_memory(user_id, memory):
 def update_user_name(user_id, name):
     try:
         set_name(user_id, name)
+        logger.info(f"Updated name for user {user_id} to {name}")
         return {"status": "success", "message": "Name updated successfully."}
     except Exception as e:
         logger.error(f"Error updating user name: {e}")
