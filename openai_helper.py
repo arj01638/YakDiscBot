@@ -147,7 +147,7 @@ def update_user_memory(user_id, memory):
     try:
         set_description(user_id, memory)
         logger.info(f"Updated memory for user {user_id}")
-        logger.debug(f"New memory: {memory}")
+        logger.info(f"New memory: {memory}")
         return {"status": "success", "message": "Memory updated successfully."}
     except Exception as e:
         logger.error(f"Error updating user memory: {e}")
