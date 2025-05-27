@@ -96,12 +96,17 @@ async def handle_prompt_chain(ctx, message, bot_id):
         for user_id in author_ids:
             if str(user_id) in line[1]:
                 name, _ = authors_information[user_id]
-                prompt_lines[i][1] = prompt_lines[i][1].replace(str(user_id), f"{name} (@{user_id})")
+                prompt_lines[i][1] = prompt_lines[i][1].replace(str(user_id), name)
 
     personality = get_personality(message.guild.id, prompt_lines)
     system_msg = personality
     added_memory_section = False
     if not is_test_server:
+        system_msg += "\n\nUser IDs:\n"
+        for author_id in authors_information:
+            name, description = authors_information[author_id]
+            system_msg += f"\n{name}: {author_id}"
+
         for author_id in authors_information:
             name, description = authors_information[author_id]
             if description:
@@ -160,8 +165,8 @@ def get_author_information(author_ids, guild):
             if member:
                 name = member.nick or member.display_name
                 set_name(author, name)
-                authors_information[author] = (name, description)
+                authors_information[author] = (name, "")
             else:
                 logger.warning(f"Could not find member for user ID {author} in guild {guild.id}")
-                authors_information[author] = (str(author), description)
+                authors_information[author] = (str(author), "")
     return authors_information

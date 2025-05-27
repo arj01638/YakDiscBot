@@ -9,7 +9,7 @@ import logging
 from openai import OpenAI
 from config import OPENAI_API_KEY, DEFAULT_MODEL_ENGINE, DEFAULT_TEMPERATURE, DEFAULT_FREQ_PENALTY, \
     DEFAULT_PRES_PENALTY, DEFAULT_TOP_P
-from db import update_usage, get_description, set_description, set_name
+from db import update_usage, get_description, set_description, set_name, get_name
 from utils import run_async
 
 client = OpenAI(
@@ -58,6 +58,25 @@ tools = [{
                     }
                 },
                 "required": ["user_id", "name"],
+                "additionalProperties": False
+            },
+        "strict": True
+    }
+},
+    {
+        "type": "function",
+        "function": {
+            "name": "get_user_name",
+            "description": "Get the preferred name of a user.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "user_id": {
+                        "type": "string",
+                        "description": "The ID of the user to get name for."
+                    }
+                },
+                "required": ["user_id"],
                 "additionalProperties": False
             },
         "strict": True
@@ -162,6 +181,19 @@ def update_user_name(user_id, name):
     except Exception as e:
         logger.error(f"Error updating user name: {e}")
         return {"status": "error", "message": str(e)}
+
+def get_user_name(user_id):
+    try:
+        name = get_name(user_id)
+        if not name:
+            logger.info(f"No name found for user {user_id}, returning default name.")
+            return {"status": "success", "name": "User"}
+        logger.info(f"Retrieved name for user {user_id}: {name}")
+        return {"status": "success", "name": name}
+    except Exception as e:
+        logger.error(f"Error retrieving user name: {e}")
+        return {"status": "error", "message": str(e)}
+
 
 def call_function(name, args):
     if name == "update_user_memory":
