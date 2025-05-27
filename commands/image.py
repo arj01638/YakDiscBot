@@ -115,10 +115,13 @@ class ImageCommands(commands.Cog):
             await reply_split(ctx.message, "Please attach or reply to an image to use this command!")
             return
         images_urls = [image.url for image in images]
-        response = await edit_image(prompt=arg, user_id=author_id, image_urls=images_urls)
-        image_b64 = response.data[0].b64_json
-        img_bytes = base64.b64decode(image_b64)
-        await ctx.reply(file=discord.File(io.BytesIO(img_bytes), filename="image.png"))
+        try:
+            response = await edit_image(prompt=arg, user_id=author_id, image_urls=images_urls)
+            image_b64 = response.data[0].b64_json
+            img_bytes = base64.b64decode(image_b64)
+            await ctx.reply(file=discord.File(io.BytesIO(img_bytes), filename="image.png"))
+        except Exception as e:
+            await reply_split(ctx.message, str(e))
 
 
     # @commands.command(name="sdultra", help="Generate an image using Stability SD Ultra.")
