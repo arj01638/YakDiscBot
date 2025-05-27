@@ -46,7 +46,7 @@ def init_db(bot_id: int):
     # Identities table: user_id, name, description
     c.execute("""
     CREATE TABLE IF NOT EXISTS identities (
-        user_id INTEGER,
+        user_id INTEGER PRIMARY KEY,
         name TEXT,
         description TEXT
     )
@@ -146,7 +146,11 @@ def get_name(user_id: int):
 def set_name(user_id: int, name: str):
     conn = get_connection()
     c = conn.cursor()
-    c.execute("INSERT OR REPLACE INTO identities (user_id, name) VALUES (?, ?)", (user_id, name))
+    c.execute("""
+            INSERT INTO identities (user_id, name)
+            VALUES (?, ?)
+            ON CONFLICT(user_id) DO UPDATE SET name=excluded.name
+        """, (user_id, name))
     conn.commit()
     conn.close()
 

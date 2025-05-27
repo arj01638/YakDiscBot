@@ -156,9 +156,9 @@ def get_author_information(author_ids, guild):
     print(f"Author IDs: {author_ids}")
     authors_information = {}
     for author in author_ids:
-        name = get_name(author)
+        name = get_name(int(author))
         if name:
-            description = get_description(author)
+            description = get_description(int(author))
             authors_information[author] = (name, description)
         else:
             member = guild.get_member(author)
