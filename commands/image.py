@@ -1,5 +1,6 @@
 import base64
 
+import aiohttp
 from discord.ext import commands
 import logging
 import requests
@@ -38,7 +39,9 @@ class ImageCommands(commands.Cog):
             await reply_split(ctx.message, str(e))
             return
         image_url = response.data[0].url
-        img_bytes = requests.get(image_url).content
+        async with aiohttp.ClientSession() as session:
+            async with session.get(image_url) as resp:
+                img_bytes = await resp.read()
         logging.info(f"Revised Prompt: {response.data[0].revised_prompt}")
         await ctx.reply(file=discord.File(io.BytesIO(img_bytes), filename="image.png"))
 
@@ -55,7 +58,9 @@ class ImageCommands(commands.Cog):
             await reply_split(ctx.message, str(e))
             return
         image_url = response.data[0].url
-        img_bytes = requests.get(image_url).content
+        async with aiohttp.ClientSession() as session:
+            async with session.get(image_url) as resp:
+                img_bytes = await resp.read()
         logging.info(f"Revised Prompt: {response.data[0].revised_prompt}")
         await ctx.reply(file=discord.File(io.BytesIO(img_bytes), filename="image.png"))
 

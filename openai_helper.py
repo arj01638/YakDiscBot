@@ -1,12 +1,15 @@
 import mimetypes
 import os
 from io import BytesIO
+
+import aiohttp
 import requests
 import logging
 from openai import OpenAI
 from config import OPENAI_API_KEY, DEFAULT_MODEL_ENGINE, DEFAULT_TEMPERATURE, DEFAULT_FREQ_PENALTY, \
     DEFAULT_PRES_PENALTY, DEFAULT_TOP_P
 from db import update_usage
+from utils import run_async
 
 client = OpenAI(
     api_key=OPENAI_API_KEY
@@ -191,12 +194,9 @@ async def get_image(model, prompt, user_id, n, size, quality):
         if model == "dall-e-3" and n != 1:
             raise ValueError("DALL-E 3 only supports n=1")
         # todo write checks for quality congruence with model
-        response = client.images.generate(
-            model=model,
-            prompt=prompt,
-            n=n,
-            size=size,
-            quality=quality
+        response = await run_async(
+            client.images.generate,
+            model=model, prompt=prompt, n=n, size=size, quality=quality
         )
         if model == "gpt-image-1":
             total_cost = pricing[model][quality] * n
@@ -216,22 +216,23 @@ async def get_image(model, prompt, user_id, n, size, quality):
 async def edit_image(prompt, user_id, image_urls):
     try:
         images = []
-        for url in image_urls:
-            resp = requests.get(url, stream=True, timeout=10)
-            resp.raise_for_status()
-            buf = BytesIO(resp.content)
-            filename = os.path.basename(url).split("?")[0]
-            buf.name = filename
-            mime_type = resp.headers.get("Content-Type", "").split(";")[0]
-            if not mime_type or mime_type == "application/octet-stream":
-                ext = os.path.splitext(filename)[1].lower()
-                mime_type = mimetypes.types_map.get(ext, "image/png")
-            images.append((filename, buf, mime_type))
+        async with aiohttp.ClientSession() as session:
+            for url in image_urls:
+                async with session.get(url, timeout=10) as resp:
+                    resp.raise_for_status()
+                    data = await resp.read()
+                buf = BytesIO(data)
+                filename = os.path.basename(url).split("?")[0]
+                buf.name = filename
+                mime_type = resp.headers.get("Content-Type", "").split(";")[0]
+                if not mime_type or mime_type == "application/octet-stream":
+                    ext = os.path.splitext(filename)[1].lower()
+                    mime_type = mimetypes.types_map.get(ext, "image/png")
+                images.append((filename, buf, mime_type))
 
-        response = client.images.edit(
-            model="gpt-image-1",
-            prompt=prompt,
-            image=images,
+        response = await run_async(
+            client.images.edit,
+            model="gpt-image-1", prompt=prompt, image=images
         )
         total_cost = pricing["gpt-image-1"]["high"]
         logger.info(f"Image editing cost: {total_cost}")
