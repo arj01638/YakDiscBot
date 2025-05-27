@@ -167,7 +167,15 @@ def get_description(user_id: int):
 def set_description(user_id: int, description: str):
     conn = get_connection()
     c = conn.cursor()
-    c.execute("INSERT OR REPLACE INTO identities (user_id, description) VALUES (?, ?)", (user_id, description))
+    c.execute(
+        """
+        INSERT INTO identities (user_id, description)
+        VALUES (?, ?)
+        ON CONFLICT(user_id) DO UPDATE
+          SET description=excluded.description
+        """,
+        (user_id, description),
+    )
     conn.commit()
     conn.close()
 
