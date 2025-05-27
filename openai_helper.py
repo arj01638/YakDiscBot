@@ -164,7 +164,7 @@ pricing = {
 
 def update_user_memory(user_id, memory):
     try:
-        set_description(user_id, memory)
+        set_description(int(user_id), memory)
         logger.info(f"Updated memory for user {user_id}")
         logger.info(f"New memory: {memory}")
         return {"status": "success", "message": "Memory updated successfully."}
@@ -175,7 +175,7 @@ def update_user_memory(user_id, memory):
 
 def update_user_name(user_id, name):
     try:
-        set_name(user_id, name)
+        set_name(int(user_id), name)
         logger.info(f"Updated name for user {user_id} to {name}")
         return {"status": "success", "message": "Name updated successfully."}
     except Exception as e:
@@ -184,7 +184,7 @@ def update_user_name(user_id, name):
 
 def get_user_name(user_id):
     try:
-        name = get_name(user_id)
+        name = get_name(int(user_id))
         if not name:
             logger.info(f"No name found for user {user_id}, returning default name.")
             return {"status": "success", "name": "User"}
