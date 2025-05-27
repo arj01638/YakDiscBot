@@ -259,16 +259,17 @@ async def get_chat_response(messages,
 
 async def get_tts(text, model, user_id, voice="onyx"):
     try:
-        response = await client.Audio.speech.create(
+        response = client.audio.speech.create(
             model=model,
             voice=voice,
             input=text
         )
-        input_tokens = response.usage.prompt_tokens
-        input_price = pricing[model]["input"] * input_tokens
-        total_price = input_price
-        logger.info(f"Input tokens: {input_tokens}, Input price: {input_price}, Total price: {total_price}")
-        update_usage(user_id, total_price)
+        # todo: pricing?
+        # input_tokens = response.usage.input_tokens
+        # input_price = pricing[model]["input"] * input_tokens
+        # total_price = input_price
+        # logger.info(f"Input tokens: {input_tokens}, Input price: {input_price}, Total price: {total_price}")
+        # update_usage(user_id, total_price)
 
         return response
     except Exception as e:
