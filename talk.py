@@ -96,7 +96,7 @@ async def handle_prompt_chain(ctx, message, bot_id):
         for user_id in author_ids:
             if str(user_id) in line[1]:
                 name, _ = authors_information[user_id]
-                prompt_lines[i][1] = prompt_lines[i][1].replace(str(user_id), name)
+                prompt_lines[i][1] = prompt_lines[i][1].replace(str(user_id), f"{name} (@{user_id})")
 
     personality = get_personality(message.guild.id, prompt_lines)
     system_msg = personality

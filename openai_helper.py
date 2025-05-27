@@ -63,7 +63,6 @@ tools = [{
         "strict": True
     }
 },
-
 ]
 
 M = 1000000
