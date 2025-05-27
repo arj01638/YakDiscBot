@@ -12,7 +12,7 @@ def get_connection():
     return conn
 
 
-def init_db(bot_id):
+def init_db(bot_id: int):
     conn = get_connection()
     c = conn.cursor()
     # Usage table: user_id, usage_balance, bank_balance, total_usage
@@ -80,7 +80,7 @@ def init_db(bot_id):
     conn.commit()
     conn.close()
 
-def set_abbreviation(guild_id, user_id, key, value):
+def set_abbreviation(guild_id: int, user_id: int, key: str, value: str):
     conn = get_connection()
     c = conn.cursor()
     c.execute("""
@@ -90,7 +90,7 @@ def set_abbreviation(guild_id, user_id, key, value):
     conn.commit()
     conn.close()
 
-def get_abbreviation(guild_id, user_id, key):
+def get_abbreviation(guild_id: int, user_id: int, key: str):
     conn = get_connection()
     c = conn.cursor()
     c.execute("""
@@ -100,7 +100,7 @@ def get_abbreviation(guild_id, user_id, key):
     conn.close()
     return row["value"] if row else None
 
-def get_all_abbreviations(guild_id, user_id):
+def get_all_abbreviations(guild_id: int, user_id: int):
     conn = get_connection()
     c = conn.cursor()
     c.execute("""
@@ -110,7 +110,7 @@ def get_all_abbreviations(guild_id, user_id):
     conn.close()
     return {row["key"]: row["value"] for row in rows}
 
-def delete_abbreviation(guild_id, user_id, key):
+def delete_abbreviation(guild_id: int, user_id: int, key: str):
     conn = get_connection()
     c = conn.cursor()
     c.execute("""
@@ -119,14 +119,14 @@ def delete_abbreviation(guild_id, user_id, key):
     conn.commit()
     conn.close()
 
-def set_meta(key, value):
+def set_meta(key: str, value: str):
     conn = get_connection()
     c = conn.cursor()
     c.execute("REPLACE INTO meta (key, value) VALUES (?, ?)", (key, value))
     conn.commit()
     conn.close()
 
-def get_meta(key):
+def get_meta(key: str):
     conn = get_connection()
     c = conn.cursor()
     c.execute("SELECT value FROM meta WHERE key = ?", (key,))
@@ -134,7 +134,7 @@ def get_meta(key):
     conn.close()
     return row["value"] if row else None
 
-def get_name(user_id):
+def get_name(user_id: int):
     conn = get_connection()
     c = conn.cursor()
     c.execute("SELECT name FROM identities WHERE user_id = ?", (user_id,))
@@ -143,7 +143,7 @@ def get_name(user_id):
     return row["name"] if row else None
 
 
-def set_name(user_id, name):
+def set_name(user_id: int, name: str):
     conn = get_connection()
     c = conn.cursor()
     c.execute("INSERT OR REPLACE INTO identities (user_id, name) VALUES (?, ?)", (user_id, name))
@@ -151,7 +151,7 @@ def set_name(user_id, name):
     conn.close()
 
 
-def get_description(user_id):
+def get_description(user_id: int):
     conn = get_connection()
     c = conn.cursor()
     c.execute("SELECT description FROM identities WHERE user_id = ?", (user_id,))
@@ -160,7 +160,7 @@ def get_description(user_id):
     return row["description"] if row else None
 
 
-def set_description(user_id, description):
+def set_description(user_id: int, description: str):
     conn = get_connection()
     c = conn.cursor()
     c.execute("INSERT OR REPLACE INTO identities (user_id, description) VALUES (?, ?)", (user_id, description))
@@ -168,7 +168,7 @@ def set_description(user_id, description):
     conn.close()
 
 
-def get_usage(user_id):
+def get_usage(user_id: int):
     conn = get_connection()
     c = conn.cursor()
     c.execute("SELECT usage_balance, bank_balance FROM usage WHERE user_id = ?", (user_id,))
@@ -183,7 +183,7 @@ def get_usage(user_id):
     conn.close()
     return row if row else None
 
-def get_balance(user_id):
+def get_balance(user_id: int):
     conn = get_connection()
     c = conn.cursor()
     c.execute("SELECT usage_balance, bank_balance FROM usage WHERE user_id = ?", (user_id,))
@@ -198,7 +198,7 @@ def get_balance(user_id):
     conn.close()
     return row["usage_balance"] if row else None
 
-def positive_balance(user_id):
+def positive_balance(user_id: int):
     conn = get_connection()
     c = conn.cursor()
     c.execute("SELECT usage_balance FROM usage WHERE user_id = ?", (user_id,))
@@ -207,7 +207,7 @@ def positive_balance(user_id):
     return row["usage_balance"] > 0 if row else False
 
 
-def update_usage(user_id, delta, initial_balance=INITIAL_DABLOONS):
+def update_usage(user_id: int, delta, initial_balance=INITIAL_DABLOONS):
     conn = get_connection()
     c = conn.cursor()
     usage = get_usage(user_id)
@@ -242,7 +242,7 @@ def reset_usage(initial_balance):
     conn.close()
 
 
-def get_karma(guild_id, user_id):
+def get_karma(guild_id: int, user_id: int):
     conn = get_connection()
     c = conn.cursor()
     c.execute("SELECT karma FROM karma WHERE guild_id = ? AND user_id = ?", (guild_id, user_id))
@@ -251,7 +251,7 @@ def get_karma(guild_id, user_id):
     return row["karma"] if row else 0
 
 
-def update_karma(guild_id, user_id, delta):
+def update_karma(guild_id: int, user_id: int, delta):
     conn = get_connection()
     c = conn.cursor()
     karma = get_karma(guild_id, user_id)
@@ -264,7 +264,7 @@ def update_karma(guild_id, user_id, delta):
 
 
 # python
-def add_reaction(message_id, user_id, author_id, value):
+def add_reaction(message_id: int, user_id: int, author_id: int, value: str):
     value = str(value)
     conn = get_connection()
     c = conn.cursor()
@@ -278,7 +278,7 @@ def add_reaction(message_id, user_id, author_id, value):
     conn.close()
 
 
-def remove_reaction(message_id, user_id, value):
+def remove_reaction(message_id: int, user_id: int, value: str):
     value = str(value)
     conn = get_connection()
     c = conn.cursor()
@@ -289,7 +289,7 @@ def remove_reaction(message_id, user_id, value):
     conn.close()
 
 
-def get_karma_snippet(guild_id, limit=5):
+def get_karma_snippet(guild_id: int, limit: int=5):
     """
     Return a snippet (top users by karma) for a guild as a dict {user_id: karma}.
     """
@@ -303,7 +303,7 @@ def get_karma_snippet(guild_id, limit=5):
     return {row["user_id"]: row["karma"] for row in rows}
 
 
-def get_usage_snippet(limit=5):
+def get_usage_snippet(limit: int=5):
     """
     Return a snippet of usage data as a dict {user_id: (usage_balance, bank_balance)}.
     """
@@ -317,7 +317,7 @@ def get_usage_snippet(limit=5):
     return {row["user_id"]: (row["usage_balance"], row["bank_balance"]) for row in rows}
 
 
-def get_identities_snippet(limit=5):
+def get_identities_snippet(limit: int=5):
     """
     Return a snippet of identities as a dict {user_id: (name, description)}.
     """
