@@ -200,6 +200,8 @@ def call_function(name, args):
         return update_user_memory(**args)
     elif name == "update_user_name":
         return update_user_name(**args)
+    elif name == "get_user_name":
+        return get_user_name(**args)
     else:
         logger.error(f"Unknown function call: {name} with args {args}")
         return {"error": f"Unknown function call: {name}"}
