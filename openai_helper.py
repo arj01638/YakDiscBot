@@ -1,3 +1,4 @@
+import json
 import mimetypes
 import os
 from io import BytesIO
@@ -8,7 +9,7 @@ import logging
 from openai import OpenAI
 from config import OPENAI_API_KEY, DEFAULT_MODEL_ENGINE, DEFAULT_TEMPERATURE, DEFAULT_FREQ_PENALTY, \
     DEFAULT_PRES_PENALTY, DEFAULT_TOP_P
-from db import update_usage
+from db import update_usage, get_description, set_description, set_name
 from utils import run_async
 
 client = OpenAI(
@@ -30,7 +31,7 @@ tools = [{
                 },
                 "memory": {
                     "type": "string",
-                    "description": "The memory to append to list of memories."
+                    "description": "The new memory to replace the old memory (try to keep previous memory information intact by restating it unless requested to remove certain details)."
                 }
             },
             "required": ["user_id", "memory"],
@@ -38,7 +39,32 @@ tools = [{
         },
         "strict": True
     }
-}]
+},
+    {
+        "type": "function",
+        "function": {
+            "name": "update_user_name",
+            "description": "Update the preferred name of a user.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "user_id": {
+                        "type": "string",
+                        "description": "The ID of the user to update name for."
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "The new preferred name for the user."
+                    }
+                },
+                "required": ["user_id", "name"],
+                "additionalProperties": False
+            },
+        "strict": True
+    }
+},
+
+]
 
 M = 1000000
 
@@ -107,23 +133,43 @@ pricing = {
         "output": 60.00 / M
     },
     "dall-e-2": {
-        "1024x1024":0.02,
+        "1024x1024": 0.02,
     },
     "dall-e-3": {
-        "1024x1024":0.04,
-        "1792x1024":0.08,
-        "1024x1792":0.08,
+        "1024x1024": 0.04,
+        "1792x1024": 0.08,
+        "1024x1792": 0.08,
     },
 
 }
 
 
 def update_user_memory(user_id, memory):
-    pass
+    try:
+        set_description(user_id, memory)
+        return {"status": "success", "message": "Memory updated successfully."}
+    except Exception as e:
+        logger.error(f"Error updating user memory: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+def update_user_name(user_id, name):
+    try:
+        set_name(user_id, name)
+        return {"status": "success", "message": "Name updated successfully."}
+    except Exception as e:
+        logger.error(f"Error updating user name: {e}")
+        return {"status": "error", "message": str(e)}
 
 def call_function(name, args):
     if name == "update_user_memory":
         return update_user_memory(**args)
+    elif name == "update_user_name":
+        return update_user_name(**args)
+    else:
+        logger.error(f"Unknown function call: {name} with args {args}")
+        return {"error": f"Unknown function call: {name}"}
+
 
 async def get_chat_response(messages,
                             user_id,
@@ -135,41 +181,45 @@ async def get_chat_response(messages,
                             stream=False):
     logger.info(f"Getting chat response with model {model_engine} \n messages: {messages} \n")
     try:
-        response = client.chat.completions.create(
-            model=model_engine,
-            messages=messages,
-            temperature=temperature,
-            frequency_penalty=freq_penalty,
-            presence_penalty=pres_penalty,
-            top_p=top_p,
-            stream=stream,
-            # tools=tools
-        )
-        input_tokens = response.usage.prompt_tokens
-        output_tokens = response.usage.completion_tokens
-        input_price = pricing[model_engine]["input"] * input_tokens
-        output_price = pricing[model_engine]["output"] * output_tokens
-        total_price = input_price + output_price
-        logger.info(f"Input tokens: {input_tokens}, Output tokens: {output_tokens}\n"
-                    f"Input price: {input_price}, Output price: {output_price}, Total price: {total_price}")
-        update_usage(user_id, total_price)
+        while True:
+            response = client.chat.completions.create(
+                model=model_engine,
+                messages=messages,
+                temperature=temperature,
+                frequency_penalty=freq_penalty,
+                presence_penalty=pres_penalty,
+                top_p=top_p,
+                stream=stream,
+                tools=tools
+            )
 
-        # for tool_call in response.choices[0].message.tool_calls:
-        #     name = tool_call.function.name
-        #     args = json.loads(tool_call.function.arguments)
-        #
-        #     result = call_function(name, args)
-        #     messages.append({
-        #         "role": "tool",
-        #         "tool_call_id": tool_call.id,
-        #         "content": str(result)
-        #     })
+            # billing
+            input_tokens = response.usage.prompt_tokens
+            output_tokens = response.usage.completion_tokens
+            cost = pricing[model_engine]["input"] * input_tokens \
+                   + pricing[model_engine]["output"] * output_tokens
+            update_usage(user_id, cost)
 
+            tool_calls = response.choices[0].message.tool_calls
+            if not tool_calls:
+                return response.choices[0].message.content
 
-        return response.choices[0].message.content
+            # for each function call, execute and append a function result
+            for call in tool_calls:
+                name = call.function.name
+                args = json.loads(call.function.arguments)
+                result = call_function(name, args)
+
+                messages.append({
+                    "role": "function",
+                    "name": name,
+                    "content": str(result)
+                })
+            #
     except Exception as e:
         logger.error(f"Error getting chat response: {e}")
         return f"Error: {str(e)}"
+
 
 async def get_tts(text, model, user_id, voice="onyx"):
     try:
@@ -188,6 +238,7 @@ async def get_tts(text, model, user_id, voice="onyx"):
     except Exception as e:
         logger.error(f"TTS error: {e}")
         raise e
+
 
 async def get_image(model, prompt, user_id, n, size, quality):
     try:
@@ -212,6 +263,7 @@ async def get_image(model, prompt, user_id, n, size, quality):
     except Exception as e:
         logger.error(f"Image generation error: {e}")
         raise e
+
 
 async def edit_image(prompt, user_id, image_urls):
     try:

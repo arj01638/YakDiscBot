@@ -100,9 +100,13 @@ async def handle_prompt_chain(ctx, message, bot_id):
 
     personality = get_personality(message.guild.id, prompt_lines)
     system_msg = personality
+    added_memory_section = False
     if not is_test_server:
         for author_id in authors_information:
             name, description = authors_information[author_id]
+            if not added_memory_section:
+                system_msg += "\n\nUser Memories:\n"
+                added_memory_section = True
             if description:
                 system_msg += f"\n{name}: {description}"
 
