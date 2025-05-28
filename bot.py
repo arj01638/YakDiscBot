@@ -97,7 +97,7 @@ async def on_message(message):
     prefixes = await bot.get_prefix(message)
     if isinstance(prefixes,str):
         prefixes = [prefixes]
-    if message.reference is None and any(message.content.startswith(prefix) for prefix in prefixes):
+    if any(message.content.startswith(prefix) for prefix in prefixes):
         async with message.channel.typing():
             return await handle_prompt_chain(ctx, message, bot.user.id)
 
