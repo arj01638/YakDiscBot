@@ -8,7 +8,7 @@ from utils import requires_credit
 
 logger = logging.getLogger(__name__)
 
-class ImageCommands(commands.Cog):
+class ReplyCommands(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
