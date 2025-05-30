@@ -214,7 +214,7 @@ def get_chat_response(messages,
             else:
                 toolbox = tools.copy()
                 if any (model_engine.startswith(prefix) for prefix in ["gpt-4o", "gpt-4.1"]):
-                    toolbox.append([{"type": "image_generation"}])
+                    toolbox.extend([{"type": "image_generation"}])
 
             response = client.responses.create(
                 model=model_engine,
