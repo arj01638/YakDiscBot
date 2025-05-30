@@ -203,7 +203,7 @@ def call_function(name, args):
         return {"error": f"Unknown function call: {name}"}
 
 
-async def get_chat_response(messages,
+def get_chat_response(messages,
                             user_id,
                             model_engine=DEFAULT_MODEL_ENGINE,
                             temperature=DEFAULT_TEMPERATURE,

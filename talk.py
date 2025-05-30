@@ -150,7 +150,7 @@ async def handle_prompt_chain(ctx, message, bot_id):
                 "content": content
             })
 
-    response, image = await get_chat_response(messages_prompt,
+    response, image = get_chat_response(messages_prompt,
                                        model_engine=params["model_engine"],
                                        temperature=params["temperature"],
                                        top_p=params["top_p"],
