@@ -7,7 +7,7 @@ import aiohttp
 import base64
 import mimetypes
 
-def truncate_long_values(obj, max_length=300):
+def truncate_long_values(obj, max_length=600):
     if isinstance(obj, dict):
         return {k: truncate_long_values(v, max_length) for k, v in obj.items()}
     elif isinstance(obj, list):
