@@ -1,8 +1,7 @@
 import logging
 import re
 from commands.abbreviation import expand_abbreviations
-from config import DEFAULT_MODEL_ENGINE, DEFAULT_TEMPERATURE, DEFAULT_FREQ_PENALTY, DEFAULT_PRES_PENALTY, DEFAULT_TOP_P, \
-    BOT_NAME, TEST_SERVER_ID
+from config import DEFAULT_MODEL_ENGINE, DEFAULT_TEMPERATURE, DEFAULT_TOP_P, TEST_SERVER_ID
 from db import get_name, get_description, set_name
 from discord_helper import reply_split
 from openai_helper import get_chat_response
@@ -11,6 +10,7 @@ from utils import requires_credit
 from types import SimpleNamespace
 
 logger = logging.getLogger(__name__)
+
 
 @requires_credit(lambda ctx, *args, **kwargs: 0.001)
 async def handle_prompt_chain(ctx, message, bot_id):
@@ -38,10 +38,8 @@ async def handle_prompt_chain(ctx, message, bot_id):
 
     params = {"model_engine": DEFAULT_MODEL_ENGINE,
               "temperature": DEFAULT_TEMPERATURE,
-              "freq_penalty": DEFAULT_FREQ_PENALTY,
-              "pres_penalty": DEFAULT_PRES_PENALTY,
               "top_p": DEFAULT_TOP_P}
-    param_pattern = re.compile(r"\b(usemodel|usetemp|usefreq|usepres|usetopp)\s+(\S+)", re.IGNORECASE)
+    param_pattern = re.compile(r"\b(usemodel|usetemp|usetopp)\s+(\S+)", re.IGNORECASE)
     user_id_pattern = re.compile(r"<@!?(\d{17,19})>")
 
     for msg in chain:
@@ -51,8 +49,6 @@ async def handle_prompt_chain(ctx, message, bot_id):
             param_mapping = {
                 "usemodel": ("model_engine", str),
                 "usetemp": ("temperature", float),
-                "usefreq": ("freq_penalty", float),
-                "usepres": ("pres_penalty", float),
                 "usetopp": ("top_p", float)
             }
 
@@ -70,8 +66,8 @@ async def handle_prompt_chain(ctx, message, bot_id):
 
         clean_content = expand_abbreviations(clean_content, msg.guild.id, msg.author.id)
         prompt_lines.append(["assistant" if msg.author.id == bot_id else "user",
-                            f"{clean_content}" if is_test_server or msg.author.id == bot_id else f"{msg.author.id}: {clean_content}",
-                            list(msg.attachments)])
+                             f"{clean_content}" if is_test_server or msg.author.id == bot_id else f"{msg.author.id}: {clean_content}",
+                             list(msg.attachments)])
 
         embed_urls = []
         for embed in msg.embeds:
@@ -127,7 +123,6 @@ async def handle_prompt_chain(ctx, message, bot_id):
                     added_memory_section = True
                 system_msg += f"\n{name}: {description}"
 
-
     messages_prompt = [
         {"role": "system",
          "content": system_msg}
@@ -154,15 +149,14 @@ async def handle_prompt_chain(ctx, message, bot_id):
                 "content": content
             })
 
-    response = await get_chat_response(messages_prompt,
+    response, image = await get_chat_response(messages_prompt,
                                        model_engine=params["model_engine"],
                                        temperature=params["temperature"],
-                                       freq_penalty=params["freq_penalty"],
-                                       pres_penalty=params["pres_penalty"],
                                        top_p=params["top_p"],
                                        user_id=message.author.id)
 
-    await reply_split(message, response)
+    await reply_split(message, response, image)
+
 
 def get_author_information(author_ids, guild):
     print(f"Author IDs: {author_ids}")

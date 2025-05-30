@@ -24,12 +24,12 @@ async def get_message_from_cache(bot, channel, message_id, extra_cache):
         logger.error(f"Error fetching message {message_id}: {e}")
         return None
 
-async def reply_split(message, reply_text):
+async def reply_split(message, reply_text, image=None):
     if not reply_text.strip():
         await message.reply("Error: Empty response")
         return
     if len(reply_text) <= 1950:
-        await message.reply(reply_text)
+        await message.reply(reply_text, file=image)
     else:
         num_chunks = math.ceil(len(reply_text) / 1950)
         last_msg = message
