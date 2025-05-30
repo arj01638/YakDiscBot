@@ -25,7 +25,7 @@ async def get_msg(bot, channel, message_id):
     if msg:
         return msg
     # Then our cache
-    if cache[message_id]:
+    if message_id in cache:
         msg = cache[message_id]
         return msg
     # Else fetch from channel
