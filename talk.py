@@ -135,7 +135,7 @@ async def handle_prompt_chain(ctx, message, bot_id):
                 "content": text
             })
         else:
-            content = [{"type": "text", "text": text}]
+            content = [{"type": "input_text", "text": text}]
             for attachment in attachments:
                 if attachment.url:
                     content.append({
