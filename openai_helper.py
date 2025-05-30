@@ -236,6 +236,7 @@ def get_chat_response(messages,
             image_data = [output.result for output in image_generation_calls]
             if image_data:
                 image_b64 = image_data[0]
+                update_usage(user_id, pricing["gpt-image-1"]["medium"])
 
             # function calls
             if not any(out.type == "function_call" for out in response.output):
