@@ -217,8 +217,8 @@ async def get_chat_response(messages,
             )
 
             # billing
-            input_tokens = response.usage.prompt_tokens
-            output_tokens = response.usage.completion_tokens
+            input_tokens = response.usage.input_tokens
+            output_tokens = response.usage.output_tokens
             cost = pricing[model_engine]["input"] * input_tokens \
                    + pricing[model_engine]["output"] * output_tokens
             update_usage(user_id, cost)
