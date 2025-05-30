@@ -9,6 +9,8 @@ from config import INITIAL_DABLOONS, ADMIN_USER_ID
 import json
 import os
 
+from discord_helper import get_msg
+
 logger = logging.getLogger(__name__)
 
 def is_admin(ctx):
@@ -80,7 +82,7 @@ class AdminCommands(commands.Cog):
                             replied_author = ""
                             if message.reference and message.reference.message_id:
                                 try:
-                                    ref_msg = await channel.fetch_message(message.reference.message_id)
+                                    ref_msg = await get_msg(self.bot, channel, message.reference.message_id)
                                     replied_msg = str(ref_msg.id)
                                     replied_author = str(ref_msg.author.id)
                                 except Exception:

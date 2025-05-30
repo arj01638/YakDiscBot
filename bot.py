@@ -4,6 +4,7 @@ import datetime
 from discord.ext import commands
 import logging
 
+from discord_helper import get_msg
 from logging_setup import setup_logging
 from config import DISCORD_TOKEN, INITIAL_DABLOONS, DO_HANDLE_ALARMING_WORDS, UPVOTE_EMOJI, DOWNVOTE_EMOJI
 import os
@@ -104,7 +105,7 @@ async def on_message(message):
     # Special handling for messages that are replies to bot messages.
     if message.reference is not None:
         try:
-            replied_message = await message.channel.fetch_message(message.reference.message_id)
+            replied_message = await get_msg(bot, message.channel, message.reference.message_id)
         except Exception:
             replied_message = None
         if replied_message and replied_message.author == bot.user:
@@ -116,7 +117,7 @@ async def on_message(message):
                 grandparent = replied_message.reference
                 if grandparent:
                     try:
-                        original_msg = await message.channel.fetch_message(grandparent.message_id) # todo replace all with get_msg type command
+                        original_msg = await get_msg(bot, message.channel, grandparent.message_id)
                         await original_msg.reply(content)
                     except Exception as e:
                         await message.reply(f"Error rewriting: {e}")
@@ -127,7 +128,7 @@ async def on_message(message):
                 grandparent = replied_message.reference
                 if grandparent:
                     try:
-                        original_msg = await message.channel.fetch_message(grandparent.message_id)
+                        original_msg = await get_msg(bot, message.channel, grandparent.message_id)
                         # # Remove "!rs" and any leading/trailing whitespace
                         # extra_content = message.content[3:].strip()
                         # # Compose new content: original + extra
@@ -150,7 +151,7 @@ async def on_message(message):
 async def on_raw_reaction_add(payload):
     try:
         channel = await bot.fetch_channel(payload.channel_id)
-        message = await channel.fetch_message(payload.message_id)
+        message = await get_msg(bot, channel, payload.message_id)
         guild = bot.get_guild(payload.guild_id)
         member = guild.get_member(payload.user_id) or await guild.fetch_member(payload.user_id)
     except Exception as e:
@@ -171,7 +172,7 @@ async def on_raw_reaction_add(payload):
 async def on_raw_reaction_remove(payload):
     try:
         channel = await bot.fetch_channel(payload.channel_id)
-        message = await channel.fetch_message(payload.message_id)
+        message = await get_msg(bot, channel, payload.message_id)
         guild = bot.get_guild(payload.guild_id)
         member = guild.get_member(payload.user_id) or await guild.fetch_member(payload.user_id)
     except Exception as e:

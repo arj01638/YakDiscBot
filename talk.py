@@ -3,7 +3,7 @@ import re
 from commands.abbreviation import expand_abbreviations
 from config import DEFAULT_MODEL_ENGINE, DEFAULT_TEMPERATURE, DEFAULT_TOP_P, TEST_SERVER_ID
 from db import get_name, get_description, set_name
-from discord_helper import reply_split
+from discord_helper import reply_split, get_msg
 from openai_helper import get_chat_response
 from personality import get_personality
 from utils import requires_credit, url_to_data_uri
@@ -26,7 +26,7 @@ async def handle_prompt_chain(ctx, message, bot_id):
         chain.append(current)
         if current.reference and current.reference.message_id:
             try:
-                current = await message.channel.fetch_message(current.reference.message_id)
+                current = await get_msg(ctx.bot, current.channel, current.reference.message_id)
             except Exception:
                 break
         else:
@@ -153,7 +153,7 @@ async def handle_prompt_chain(ctx, message, bot_id):
                 "content": content
             })
 
-    response, image = get_chat_response(messages_prompt,
+    response, image = await get_chat_response(messages_prompt,
                                        model_engine=params["model_engine"],
                                        temperature=params["temperature"],
                                        top_p=params["top_p"],

@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import io
+from collections import OrderedDict
 
 import discord
 import math
@@ -9,19 +10,28 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-async def get_message_from_cache(bot, channel, message_id, extra_cache):
+cache = OrderedDict()
+MAXSIZE = 300
+
+def add_to_cache(obj):
+    key = obj.id
+    cache[key] = obj
+    if len(cache) > MAXSIZE:
+        cache.popitem(last=False)
+
+async def get_msg(bot, channel, message_id):
     # Check bot's cache first
     msg = discord.utils.get(bot.cached_messages, id=message_id)
     if msg:
         return msg
-    # Then extra_cache
-    for m in extra_cache:
-        if m.id == message_id:
-            return m
+    # Then our cache
+    if cache[message_id]:
+        msg = cache[message_id]
+        return msg
     # Else fetch from channel
     try:
         msg = await channel.fetch_message(message_id)
-        extra_cache.append(msg)
+        add_to_cache(msg)
         return msg
     except Exception as e:
         logger.error(f"Error fetching message {message_id}: {e}")

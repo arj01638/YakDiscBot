@@ -1,4 +1,5 @@
 import base64
+import functools
 import json
 import mimetypes
 import os
@@ -201,7 +202,7 @@ def call_function(name, args):
         return {"error": f"Unknown function call: {name}"}
 
 
-def get_chat_response(messages,
+async def get_chat_response(messages,
                             user_id,
                             model_engine=DEFAULT_MODEL_ENGINE,
                             temperature=DEFAULT_TEMPERATURE,
@@ -216,13 +217,15 @@ def get_chat_response(messages,
                 if any (model_engine.startswith(prefix) for prefix in ["gpt-4o", "gpt-4.1"]):
                     toolbox.extend([{"type": "image_generation"}])
 
-            response = client.responses.create(
-                model=model_engine,
-                input=messages,
-                temperature=temperature,
-                top_p=top_p,
-                tools=toolbox
-            )
+            response = await run_async(
+                functools.partial(
+                    client.responses.create,
+                    model=model_engine,
+                    input=messages,
+                    temperature=temperature,
+                    top_p=top_p,
+                    tools=toolbox
+            ))
 
             # billing
             input_tokens = response.usage.input_tokens

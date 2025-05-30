@@ -3,6 +3,7 @@ from discord.ext import commands
 import logging
 from db import get_connection
 from config import UPVOTE_EMOJI, DOWNVOTE_EMOJI
+from discord_helper import get_msg
 
 logger = logging.getLogger(__name__)
 
@@ -229,7 +230,7 @@ class ReactionCommands(commands.Cog):
             msg_link = "Link not found"
             for channel in ctx.guild.text_channels:
                 try:
-                    msg = await channel.fetch_message(int(row["message_id"]))
+                    msg = await get_msg(self.bot, channel, int(row["message_id"]))
                     msg_link = msg.jump_url
                     break
                 except Exception:

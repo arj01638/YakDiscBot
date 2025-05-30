@@ -7,7 +7,7 @@ import requests
 import io
 import discord
 
-from discord_helper import reply_split
+from discord_helper import reply_split, get_msg
 from openai_helper import get_image, edit_image
 from config import STABILITY_API_KEY
 from db import update_usage
@@ -105,7 +105,7 @@ class ImageCommands(commands.Cog):
             images = ctx.message.attachments
         elif ctx.message.reference:
             try:
-                replied_message = await ctx.channel.fetch_message(ctx.message.reference.message_id)
+                replied_message = await get_msg(self.bot, ctx.channel, ctx.message.reference.message_id)
                 if replied_message.attachments:
                     images = replied_message.attachments
             except Exception as e:
