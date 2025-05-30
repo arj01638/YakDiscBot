@@ -23,7 +23,7 @@ def requires_credit(cost_func):
                 if random() < 0.05:
                     await ctx.reply("get ur bands up brokie 💀")
                 else:
-                    await ctx.reply("You do not have enough dabloons to do that.")
+                    await ctx.reply("You do not have enough dabloons to do that. Dabloons reset every day.")
                 return
             return await func(self, ctx, *args, **kwargs)
         return wrapper
