@@ -77,8 +77,6 @@ tools = [
     }
 ]
 
-tools.extend([{"type": "image_generation"}])
-
 M = 1000000
 
 pricing = {
@@ -211,12 +209,19 @@ def get_chat_response(messages,
     logger.info(f"Getting chat response with model {model_engine} \n messages: {truncate_long_values(messages)} \n")
     try:
         while True:
+            if model_engine.startswith("gpt-4.5"):
+                toolbox = None
+            else:
+                toolbox = tools.copy()
+                if any (model_engine.startswith(prefix) for prefix in ["gpt-4o", "gpt-4.1"]):
+                    toolbox.append([{"type": "image_generation"}])
+
             response = client.responses.create(
                 model=model_engine,
                 input=messages,
                 temperature=temperature,
                 top_p=top_p,
-                tools=tools
+                tools=toolbox
             )
 
             # billing
