@@ -53,5 +53,4 @@ class ReplyCommands(commands.Cog):
 
 async def setup(bot):
     await bot.add_cog(ReplyCommands(bot))
-    logger.info("ImageCommands cog loaded successfully.")
 
