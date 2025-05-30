@@ -18,9 +18,9 @@ client = OpenAI(
 )
 logger = logging.getLogger(__name__)
 
-tools = [{
-    "type": "function",
-    "function": {
+tools = [
+    {
+        "type": "function",
         "name": "update_user_memory",
         "description": "Update memory about a user.",
         "parameters": {
@@ -37,52 +37,44 @@ tools = [{
             },
             "required": ["user_id", "memory"],
             "additionalProperties": False
-        },
-        "strict": True
-    }
-},
+        }
+    },
     {
         "type": "function",
-        "function": {
-            "name": "update_user_name",
-            "description": "Update the preferred name of a user.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "user_id": {
-                        "type": "string",
-                        "description": "The ID of the user to update name for."
-                    },
-                    "name": {
-                        "type": "string",
-                        "description": "The new preferred name for the user."
-                    }
+        "name": "update_user_name",
+        "description": "Update the preferred name of a user.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "user_id": {
+                    "type": "string",
+                    "description": "The ID of the user to update name for."
                 },
-                "required": ["user_id", "name"],
-                "additionalProperties": False
+                "name": {
+                    "type": "string",
+                    "description": "The new preferred name for the user."
+                }
             },
-        "strict": True
-    }
-},
+            "required": ["user_id", "name"],
+            "additionalProperties": False
+        }
+    },
     {
         "type": "function",
-        "function": {
-            "name": "get_user_name",
-            "description": "Get the preferred name of a user.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "user_id": {
-                        "type": "string",
-                        "description": "The ID of the user to get name for."
-                    }
-                },
-                "required": ["user_id"],
-                "additionalProperties": False
+        "name": "get_user_name",
+        "description": "Get the preferred name of a user.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "user_id": {
+                    "type": "string",
+                    "description": "The ID of the user to get name for."
+                }
             },
-        "strict": True
+            "required": ["user_id"],
+            "additionalProperties": False
+        }
     }
-},
 ]
 
 M = 1000000
@@ -240,12 +232,11 @@ async def get_chat_response(messages,
             ]
             image_data = [output.result for output in image_generation_calls]
             if image_data:
-                image_base64 = image_data[0]
-                return_image = base64.b64decode(image_base64)
+                image_b64 = image_data[0]
 
             # function calls
             if not any(out.type == "function_call" for out in response.output):
-                return response.output_text, return_image if image_data else None
+                return response.output_text, image_b64 if image_data else None
 
             # for each function call, execute and append a function result
             for tool_call in response.output:

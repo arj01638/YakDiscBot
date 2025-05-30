@@ -1,4 +1,7 @@
 import asyncio
+import base64
+import io
+
 import discord
 import math
 import re
@@ -24,12 +27,15 @@ async def get_message_from_cache(bot, channel, message_id, extra_cache):
         logger.error(f"Error fetching message {message_id}: {e}")
         return None
 
-async def reply_split(message, reply_text, image=None):
-    if not reply_text.strip():
+async def reply_split(message, reply_text="", image_b64=None):
+    if not reply_text.strip() and not image_b64:
         await message.reply("Error: Empty response")
         return
+    if image_b64: # not ever going to return text and an image im pretty sure
+        img_bytes = base64.b64decode(image_b64)
+        await message.reply(file=discord.File(io.BytesIO(img_bytes), filename="image.png"))
     if len(reply_text) <= 1950:
-        await message.reply(reply_text, file=image)
+        await message.reply(reply_text)
     else:
         num_chunks = math.ceil(len(reply_text) / 1950)
         last_msg = message
