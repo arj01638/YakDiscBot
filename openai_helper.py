@@ -1,3 +1,4 @@
+import base64
 import json
 import mimetypes
 import os
@@ -211,21 +212,15 @@ async def get_chat_response(messages,
                             user_id,
                             model_engine=DEFAULT_MODEL_ENGINE,
                             temperature=DEFAULT_TEMPERATURE,
-                            freq_penalty=DEFAULT_FREQ_PENALTY,
-                            pres_penalty=DEFAULT_PRES_PENALTY,
-                            top_p=DEFAULT_TOP_P,
-                            stream=False):
+                            top_p=DEFAULT_TOP_P):
     logger.info(f"Getting chat response with model {model_engine} \n messages: {messages} \n")
     try:
         while True:
-            response = client.chat.completions.create(
+            response = client.responses.create(
                 model=model_engine,
-                messages=messages,
+                input=messages,
                 temperature=temperature,
-                frequency_penalty=freq_penalty,
-                presence_penalty=pres_penalty,
                 top_p=top_p,
-                stream=stream,
                 tools=tools
             )
 
@@ -235,21 +230,35 @@ async def get_chat_response(messages,
             cost = pricing[model_engine]["input"] * input_tokens \
                    + pricing[model_engine]["output"] * output_tokens
             update_usage(user_id, cost)
+            logger.info(f"Usage: {response.usage}")
 
-            tool_calls = response.choices[0].message.tool_calls
-            if not tool_calls:
-                return response.choices[0].message.content
+            # image generation
+            image_generation_calls = [
+                output
+                for output in response.output
+                if output.type == "image_generation_call"
+            ]
+            image_data = [output.result for output in image_generation_calls]
+            if image_data:
+                image_base64 = image_data[0]
+                return_image = base64.b64decode(image_base64)
+
+            # function calls
+            if not any(out.type == "function_call" for out in response.output):
+                return response.output_text, return_image if image_data else None
 
             # for each function call, execute and append a function result
-            for call in tool_calls:
-                name = call.function.name
-                args = json.loads(call.function.arguments)
+            for tool_call in response.output:
+                if tool_call.type != "function_call":
+                    continue
+                name = tool_call.name
+                args = json.loads(tool_call.arguments)
                 result = call_function(name, args)
 
                 messages.append({
-                    "role": "function",
-                    "name": name,
-                    "content": str(result)
+                    "type": "function_call_output",
+                    "call_id": tool_call.call_id,
+                    "output": str(result)
                 })
             #
     except Exception as e:
@@ -284,7 +293,7 @@ async def get_image(model, prompt, user_id, n, size, quality):
         # todo write checks for quality congruence with model
         response = await run_async(
             client.images.generate,
-            model=model, prompt=prompt, n=n, size=size, quality=quality
+            model=model, prompt=prompt, n=n, size=size, quality=quality, moderation="low"
         )
         if model == "gpt-image-1":
             total_cost = pricing[model][quality] * n

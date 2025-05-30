@@ -8,6 +8,7 @@ from discord_helper import reply_split
 from openai_helper import get_chat_response
 from personality import get_personality
 from utils import requires_credit
+from types import SimpleNamespace
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +71,18 @@ async def handle_prompt_chain(ctx, message, bot_id):
         clean_content = expand_abbreviations(clean_content, msg.guild.id, msg.author.id)
         prompt_lines.append(["assistant" if msg.author.id == bot_id else "user",
                             f"{clean_content}" if is_test_server or msg.author.id == bot_id else f"{msg.author.id}: {clean_content}",
-                            msg.attachments])
+                            list(msg.attachments)])
+
+        embed_urls = []
+        for embed in msg.embeds:
+            # main embed image
+            if embed.image and embed.image.url:
+                embed_urls.append(embed.image.url)
+            # thumbnail
+            if embed.thumbnail and embed.thumbnail.url:
+                embed_urls.append(embed.thumbnail.url)
+        for url in embed_urls:
+            prompt_lines[-1][2].append(SimpleNamespace(url=url))
 
         if not is_test_server:
             author_ids.append(msg.author.id)
@@ -132,8 +144,8 @@ async def handle_prompt_chain(ctx, message, bot_id):
             for attachment in attachments:
                 if attachment.url:
                     content.append({
-                        "type": "image_url",
-                        "image_url": {"url": attachment.url}
+                        "type": "input_image",
+                        "image_url": attachment.url
                     })
                 else:
                     logger.warning(f"Attachment URL not found for message ID {attachment.id}")
