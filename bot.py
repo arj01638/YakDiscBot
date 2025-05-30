@@ -102,48 +102,6 @@ async def on_message(message):
         async with message.channel.typing():
             return await handle_prompt_chain(ctx, message, bot.user.id)
 
-    # Special handling for messages that are replies to bot messages.
-    if message.reference is not None:
-        try:
-            replied_message = await get_msg(bot, message.channel, message.reference.message_id)
-        except Exception:
-            replied_message = None
-        if replied_message and replied_message.author == bot.user:
-            if message.content.startswith("!tts"):
-                await bot.process_commands(message) # todo implement
-                return
-            elif message.content.startswith("!rw"): # rewrite bot reply
-                content = message.content[3:].strip()
-                grandparent = replied_message.reference
-                if grandparent:
-                    try:
-                        original_msg = await get_msg(bot, message.channel, grandparent.message_id)
-                        await original_msg.reply(content)
-                    except Exception as e:
-                        await message.reply(f"Error rewriting: {e}")
-                else:
-                    await message.reply("No message to rewrite to.")
-                return
-            elif message.content.startswith("!rs"): # "resend" grandparent message
-                grandparent = replied_message.reference
-                if grandparent:
-                    try:
-                        original_msg = await get_msg(bot, message.channel, grandparent.message_id)
-                        # # Remove "!rs" and any leading/trailing whitespace
-                        # extra_content = message.content[3:].strip()
-                        # # Compose new content: original + extra
-                        # new_content = original_msg.content
-                        # if extra_content:
-                        #     new_content += " " + extra_content # todo when we implement get_msg make new_content actually do something
-                        await handle_prompt_chain(ctx, original_msg, bot.user.id)
-                    except Exception as e:
-                        await message.reply(f"Error resending: {e}")
-                else:
-                    await message.reply("No message to resend.")
-                return
-            else:
-                return await handle_prompt_chain(ctx, message, bot.user.id)
-
     await bot.process_commands(message) # do we need this?
 
 

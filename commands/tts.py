@@ -17,7 +17,7 @@ class TTS(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    # TODO: implement
+    # TODO: implement (dont forget reply)
     # async def reply_with_movie(self, ctx, response):
     #     temp_audio = f"temp_speech{int(time.time())}.mp3"
     #     response.stream_to_file(temp_audio)
