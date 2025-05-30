@@ -7,6 +7,15 @@ import aiohttp
 import base64
 import mimetypes
 
+def truncate_long_values(obj, max_length=300):
+    if isinstance(obj, dict):
+        return {k: truncate_long_values(v, max_length) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [truncate_long_values(item, max_length) for item in obj]
+    elif isinstance(obj, str) and len(obj) > max_length:
+        return obj[:max_length] + "...[truncated]"
+    return obj
+
 async def url_to_data_uri(url):
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as resp:

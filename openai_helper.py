@@ -11,7 +11,7 @@ from openai import OpenAI
 from config import OPENAI_API_KEY, DEFAULT_MODEL_ENGINE, DEFAULT_TEMPERATURE, DEFAULT_FREQ_PENALTY, \
     DEFAULT_PRES_PENALTY, DEFAULT_TOP_P
 from db import update_usage, get_description, set_description, set_name, get_name
-from utils import run_async
+from utils import run_async, truncate_long_values
 
 client = OpenAI(
     api_key=OPENAI_API_KEY
@@ -208,7 +208,7 @@ def get_chat_response(messages,
                             model_engine=DEFAULT_MODEL_ENGINE,
                             temperature=DEFAULT_TEMPERATURE,
                             top_p=DEFAULT_TOP_P):
-    logger.info(f"Getting chat response with model {model_engine} \n messages: {messages} \n")
+    logger.info(f"Getting chat response with model {model_engine} \n messages: {truncate_long_values(messages)} \n")
     try:
         while True:
             response = client.responses.create(
