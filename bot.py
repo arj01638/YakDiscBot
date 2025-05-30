@@ -102,6 +102,12 @@ async def on_message(message):
         async with message.channel.typing():
             return await handle_prompt_chain(ctx, message, bot.user.id)
 
+    # Special handling for messages that are replies to bot messages.
+    if message.reference is not None:
+        replied_message = await get_msg(bot, message.channel, message.reference.message_id)
+        if replied_message and replied_message.author == bot.user:
+            return await handle_prompt_chain(ctx, message, bot.user.id)
+
     await bot.process_commands(message) # do we need this?
 
 
