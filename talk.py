@@ -6,7 +6,7 @@ from db import get_name, get_description, set_name
 from discord_helper import reply_split
 from openai_helper import get_chat_response
 from personality import get_personality
-from utils import requires_credit
+from utils import requires_credit, url_to_data_uri
 from types import SimpleNamespace
 
 logger = logging.getLogger(__name__)
@@ -138,9 +138,10 @@ async def handle_prompt_chain(ctx, message, bot_id):
             content = [{"type": "input_text", "text": text}]
             for attachment in attachments:
                 if attachment.url:
+                    # so switching to the responses endpoint they dont support external urls so we have to download and convert to b64
                     content.append({
                         "type": "input_image",
-                        "image_url": attachment.url
+                        "image_url": await url_to_data_uri(attachment.url)
                     })
                 else:
                     logger.warning(f"Attachment URL not found for message ID {attachment.id}")

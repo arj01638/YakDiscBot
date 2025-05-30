@@ -3,7 +3,21 @@ import functools
 from random import random
 
 from db import get_balance
+import aiohttp
+import base64
+import mimetypes
 
+async def url_to_data_uri(url):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            resp.raise_for_status()
+            data = await resp.read()
+            mime_type = resp.headers.get("Content-Type")
+            if not mime_type:
+                ext = url.split('.')[-1]
+                mime_type = mimetypes.types_map.get(f".{ext}", "application/octet-stream")
+            b64 = base64.b64encode(data).decode("utf-8")
+            return f"data:{mime_type};base64,{b64}"
 
 async def run_async(func, *args, **kwargs):
     loop = asyncio.get_event_loop()
