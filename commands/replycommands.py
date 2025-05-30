@@ -51,3 +51,7 @@ class ImageCommands(commands.Cog):
             return
         await grandparent_message.reply(content)
 
+async def setup(bot):
+    await bot.add_cog(ImageCommands(bot))
+    logger.info("ImageCommands cog loaded successfully.")
+
