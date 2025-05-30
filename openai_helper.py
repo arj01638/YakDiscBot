@@ -240,12 +240,11 @@ def get_chat_response(messages,
             ]
             image_data = [output.result for output in image_generation_calls]
             if image_data:
-                image_b64 = image_data[0]
                 update_usage(user_id, pricing["gpt-image-1"]["medium"])
 
             # function calls
             if not any(out.type == "function_call" for out in response.output):
-                return response.output_text, image_b64 if image_data else None
+                return response.output_text, image_data[0]
 
             # for each function call, execute and append a function result
             for tool_call in response.output:
@@ -255,6 +254,7 @@ def get_chat_response(messages,
                 args = json.loads(tool_call.arguments)
                 result = call_function(name, args)
 
+                messages.append(response.output[0])
                 messages.append({
                     "type": "function_call_output",
                     "call_id": tool_call.call_id,

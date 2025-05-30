@@ -135,7 +135,10 @@ async def handle_prompt_chain(ctx, message, bot_id):
                 "content": text
             })
         else:
-            content = [{"type": "input_text", "text": text}]
+            if role == "assistant":
+                content = [{"type": "output_text", "text": text}]
+            else:
+                content = [{"type": "input_text", "text": text}]
             for attachment in attachments:
                 if attachment.url:
                     # so switching to the responses endpoint they dont support external urls so we have to download and convert to b64
