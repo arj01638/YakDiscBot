@@ -31,14 +31,20 @@ async def reply_split(message, reply_text="", image_b64=None):
     if not reply_text.strip() and not image_b64:
         await message.reply("Error: Empty response")
         return
-    if image_b64: # not ever going to return text and an image im pretty sure
-        img_bytes = base64.b64decode(image_b64)
-        await message.reply(file=discord.File(io.BytesIO(img_bytes), filename="image.png"))
     if len(reply_text) <= 1950:
-        await message.reply(reply_text)
+        if image_b64:
+            img_bytes = base64.b64decode(image_b64)
+            await message.reply(reply_text, file=discord.File(io.BytesIO(img_bytes), filename="image.png"))
+        else:
+            await message.reply(reply_text)
     else:
         num_chunks = math.ceil(len(reply_text) / 1950)
         last_msg = message
         for i in range(num_chunks):
             chunk = reply_text[i*1950:(i+1)*1950]
-            last_msg = await last_msg.reply(chunk)
+            if i == num_chunks - 1 and image_b64:
+                img_bytes = base64.b64decode(image_b64)
+                await last_msg.reply(chunk, file=discord.File(io.BytesIO(img_bytes), filename="image.png"))
+            else:
+                last_msg = await last_msg.reply(chunk)
+
