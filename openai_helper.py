@@ -244,7 +244,7 @@ def get_chat_response(messages,
 
             # function calls
             if not any(out.type == "function_call" for out in response.output):
-                return response.output_text, image_data[0]
+                return response.output_text, image_data[0] if image_data else None
 
             # for each function call, execute and append a function result
             for tool_call in response.output:
@@ -254,7 +254,7 @@ def get_chat_response(messages,
                 args = json.loads(tool_call.arguments)
                 result = call_function(name, args)
 
-                messages.append(response.output[0])
+                messages.append(tool_call)
                 messages.append({
                     "type": "function_call_output",
                     "call_id": tool_call.call_id,
