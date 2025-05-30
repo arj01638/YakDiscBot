@@ -14,7 +14,7 @@ class ReplyCommands(commands.Cog):
 
     @commands.command(name="rs", help="Resend the replied message.")
     @requires_credit(lambda ctx, *args, **kwargs: 0.001)
-    async def rs(self, ctx, arg):
+    async def rs(self, ctx):
         if not ctx.message.reference:
             await ctx.send("Error: Please reply to a message.")
             return
