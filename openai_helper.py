@@ -77,6 +77,8 @@ tools = [
     }
 ]
 
+tools.extend([{"type": "image_generation"}])
+
 M = 1000000
 
 pricing = {
@@ -174,6 +176,7 @@ def update_user_name(user_id, name):
     except Exception as e:
         logger.error(f"Error updating user name: {e}")
         return {"status": "error", "message": str(e)}
+
 
 def get_user_name(user_id):
     try:
