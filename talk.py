@@ -66,7 +66,7 @@ async def handle_prompt_chain(ctx, message, bot_id):
 
         clean_content = expand_abbreviations(clean_content, msg.guild.id, msg.author.id)
         prompt_lines.append(["assistant" if msg.author.id == bot_id else "user",
-                             f"{clean_content}" if is_test_server or msg.author.id == bot_id else f"{msg.author.id}: {clean_content}",
+                             f"{clean_content}" if is_test_server or msg.author.id == bot_id else f"message from {msg.author.id}: {clean_content}",
                              list(msg.attachments)])
 
         embed_urls = []
