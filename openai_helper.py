@@ -131,6 +131,7 @@ pricing = {
     },
     "gpt-image-1": {
         "input": 5.00 / M,
+        "output": 40.00 / M,
         "medium": 0.042,
         "high": 0.167,
     },
@@ -243,7 +244,7 @@ async def get_chat_response(messages,
             ]
             image_data = [output.result for output in image_generation_calls]
             if image_data:
-                update_usage(user_id, pricing["gpt-image-1"]["medium"])
+                update_usage(user_id, pricing["gpt-image-1"]["medium"] + (pricing["gpt-image-1"]["output"] * output_tokens))
 
             # function calls
             if not any(out.type == "function_call" for out in response.output):
