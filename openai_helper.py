@@ -234,7 +234,7 @@ async def get_chat_response(messages,
             cost = pricing[model_engine]["input"] * input_tokens \
                    + pricing[model_engine]["output"] * output_tokens
             update_usage(user_id, cost)
-            logger.info(f"Usage: {response.usage}")
+            logger.info(f"Usage: {response.usage}, Cost: {cost:.4f} USD")
 
             # image generation
             image_generation_calls = [
@@ -267,7 +267,7 @@ async def get_chat_response(messages,
             #
     except Exception as e:
         logger.error(f"Error getting chat response: {e}")
-        return f"Error: {str(e)}"
+        return f"Error: {str(e)}", None
 
 
 async def get_tts(text, model, user_id, voice="onyx"):
