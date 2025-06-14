@@ -138,7 +138,7 @@ async def handle_prompt_chain(ctx, message, bot_id):
             })
         else:
             if role == "assistant":
-                content = [{"type": "output_text", "text": f"Gluemo (you/the assistant): {text}"}]
+                content = [{"type": "input_text", "text": f"Gluemo (you/the assistant): {text}"}]
             else:
                 content = [{"type": "input_text", "text": text}]
             for attachment in attachments:
