@@ -255,7 +255,7 @@ async def get_chat_response(messages,
 
             # function calls
             if not any(out.type == "function_call" for out in response.output):
-                return response.output_text, image_data[0] if image_data else None, response.id
+                return response.output_text, image_data[0] if image_data else None
 
             # for each function call, execute and append a function result
             for tool_call in response.output:
