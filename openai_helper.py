@@ -207,7 +207,8 @@ async def get_chat_response(messages,
                             user_id,
                             model_engine=DEFAULT_MODEL_ENGINE,
                             temperature=DEFAULT_TEMPERATURE,
-                            top_p=DEFAULT_TOP_P):
+                            top_p=DEFAULT_TOP_P,
+                            previous_response_id=None):
     logger.info(f"Getting chat response with model {model_engine} \n messages: {truncate_long_values(messages)} \n")
     try:
         while True:
@@ -215,18 +216,23 @@ async def get_chat_response(messages,
                 toolbox = None
             else:
                 toolbox = tools.copy()
-                if any (model_engine.startswith(prefix) for prefix in ["gpt-4o", "gpt-4.1"]):
+                if any(model_engine.startswith(prefix) for prefix in ["gpt-4o", "gpt-4.1"]):
                     toolbox.extend([{"type": "image_generation"}])
-
+            request_kwargs = dict(
+                model=model_engine,
+                input=messages,
+                temperature=temperature,
+                top_p=top_p,
+                tools=toolbox
+            )
+            if previous_response_id:
+                request_kwargs["previous_response_id"] = previous_response_id
             response = await run_async(
                 functools.partial(
                     client.responses.create,
-                    model=model_engine,
-                    input=messages,
-                    temperature=temperature,
-                    top_p=top_p,
-                    tools=toolbox
-            ))
+                    **request_kwargs
+                )
+            )
 
             # billing
             input_tokens = response.usage.input_tokens
@@ -244,11 +250,12 @@ async def get_chat_response(messages,
             ]
             image_data = [output.result for output in image_generation_calls]
             if image_data:
-                update_usage(user_id, pricing["gpt-image-1"]["medium"] + (pricing["gpt-image-1"]["output"] * output_tokens))
+                update_usage(user_id,
+                             pricing["gpt-image-1"]["medium"] + (pricing["gpt-image-1"]["output"] * output_tokens))
 
             # function calls
             if not any(out.type == "function_call" for out in response.output):
-                return response.output_text, image_data[0] if image_data else None
+                return response.output_text, image_data[0] if image_data else None, response.id
 
             # for each function call, execute and append a function result
             for tool_call in response.output:

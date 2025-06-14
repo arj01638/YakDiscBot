@@ -138,7 +138,7 @@ async def handle_prompt_chain(ctx, message, bot_id):
             })
         else:
             if role == "assistant":
-                content = [{"type": "output_text", "text": text}]
+                content = [{"type": "output_text", "text": f"Gluemo (you/the assistant): {text}"}]
             else:
                 content = [{"type": "input_text", "text": text}]
             for attachment in attachments:
@@ -151,7 +151,7 @@ async def handle_prompt_chain(ctx, message, bot_id):
                 else:
                     logger.warning(f"Attachment URL not found for message ID {attachment.id}")
             messages_prompt.append({
-                "role": role,
+                "role": "user",
                 "content": content
             })
 
