@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 @requires_credit(lambda ctx, *args, **kwargs: 0.001)
-async def handle_prompt_chain(ctx, message, bot_id):
+async def handle_prompt_chain(ctx, message, bot_id, ping=None):
     """
     Collects the conversation from a reply chain, builds a prompt,
     sends it to the AI, and replies using reply_split.
@@ -160,6 +160,8 @@ async def handle_prompt_chain(ctx, message, bot_id):
                                        temperature=params["temperature"],
                                        top_p=params["top_p"],
                                        user_id=message.author.id)
+
+    response = ping + response if ping else response
 
     await reply_split(message, response, image)
 

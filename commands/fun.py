@@ -66,7 +66,7 @@ class FunCommands(commands.Cog):
             # Call handle_prompt_chain with the last message
             # It expects (ctx, message, bot_id)
             # The reply_split in handle_prompt_chain will reply to last_msg
-            await handle_prompt_chain(fake_ctx, last_msg, ctx.bot.user.id)
+            await handle_prompt_chain(fake_ctx, last_msg, ctx.bot.user.id, ping="<@974297735559806986> ")
 
             # Wait for the bot's reply to appear
             def check(m):
