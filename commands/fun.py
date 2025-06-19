@@ -18,42 +18,7 @@ HARDCODED_RAINIER_ID = 267450712072519680         # Rainier's user ID
 from personality import static_config
 INSULTS = static_config.get("insults", [])
 
-@commands.command(name="talktogenai", help="Reply to the last GenAI message and continue the chain for 10 messages.")
-async def talktogenai(self, ctx):
-    # Find the last message from GenAI in the last 50 messages
-    genai_msg = None
-    async for msg in ctx.channel.history(limit=50):
-        if msg.author.id == 974297735559806986:
-            genai_msg = msg
-            break
-    if not genai_msg:
-        await ctx.send("No recent GenAI message found in the last 50 messages.")
-        return
 
-    # Simulate a reply chain: reply to GenAI, then reply to each new message 9 more times
-    last_msg = genai_msg
-    for i in range(10):
-        # Create a fake context for handle_prompt_chain
-        class FakeCtx:
-            def __init__(self, bot, guild, channel):
-                self.bot = bot
-                self.guild = guild
-                self.channel = channel
-
-        fake_ctx = FakeCtx(ctx.bot, ctx.guild, ctx.channel)
-        # Call handle_prompt_chain with the last message
-        # It expects (ctx, message, bot_id)
-        # The reply_split in handle_prompt_chain will reply to last_msg
-        await handle_prompt_chain(fake_ctx, last_msg, ctx.bot.user.id)
-        # Wait for the bot's reply to appear
-        def check(m):
-            return m.reference and m.reference.message_id == last_msg.id and m.author.id == ctx.bot.user.id
-        try:
-            reply = await ctx.bot.wait_for("message", check=check, timeout=10)
-        except asyncio.TimeoutError:
-            await ctx.send("Timed out waiting for bot reply.")
-            break
-        last_msg = reply
 
 
 def increase_tokens(user_id, amount):
@@ -73,6 +38,46 @@ def increase_tokens(user_id, amount):
 class FunCommands(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+
+    @commands.command(name="talktogenai",
+                      help="Reply to the last GenAI message and continue the chain for 10 messages.")
+    async def talktogenai(self, ctx):
+        # Find the last message from GenAI in the last 50 messages
+        genai_msg = None
+        async for msg in ctx.channel.history(limit=50):
+            if msg.author.id == 974297735559806986:
+                genai_msg = msg
+                break
+        if not genai_msg:
+            await ctx.send("No recent GenAI message found in the last 50 messages.")
+            return
+
+        # Simulate a reply chain: reply to GenAI, then reply to each new message 9 more times
+        last_msg = genai_msg
+        for i in range(10):
+            # Create a fake context for handle_prompt_chain
+            class FakeCtx:
+                def __init__(self, bot, guild, channel):
+                    self.bot = bot
+                    self.guild = guild
+                    self.channel = channel
+
+            fake_ctx = FakeCtx(ctx.bot, ctx.guild, ctx.channel)
+            # Call handle_prompt_chain with the last message
+            # It expects (ctx, message, bot_id)
+            # The reply_split in handle_prompt_chain will reply to last_msg
+            await handle_prompt_chain(fake_ctx, last_msg, ctx.bot.user.id)
+
+            # Wait for the bot's reply to appear
+            def check(m):
+                return m.reference and m.reference.message_id == last_msg.id and m.author.id == ctx.bot.user.id
+
+            try:
+                reply = await ctx.bot.wait_for("message", check=check, timeout=10)
+            except asyncio.TimeoutError:
+                await ctx.send("Timed out waiting for bot reply.")
+                break
+            last_msg = reply
 
     @commands.command(name="submitinsult", help="Submit an insult (everyone except one user can use this).")
     async def submitinsult(self, ctx, *, insult: str):
